@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Safe-Sawar",
+    "slug": "safe-sawar",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "newArchEnabled": false,
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A0010"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.safesawar.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Safe-Sawar needs your location to find nearby rides and match you with other women in your area.",
+        "NSLocationAlwaysUsageDescription": "Safe-Sawar needs your location for ride tracking and emergency SOS.",
+        "NSCameraUsageDescription": "Safe-Sawar needs camera access for biometric verification.",
+        "NSFaceIDUsageDescription": "Safe-Sawar uses Face ID for secure biometric verification.",
+        "NSBluetoothAlwaysUsageDescription": "Safe-Sawar uses Bluetooth for mesh network emergency SOS when internet is unavailable."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A0010"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT"
+      ],
+      "package": "com.safesawar.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Safe-Sawar needs camera access for biometric verification."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Safe-Sawar uses Face ID for secure biometric verification."
+        }
+      ],
+      "expo-location"
+    ]
+  }
+}
