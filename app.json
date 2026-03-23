@@ -4,7 +4,7 @@
     "slug": "safe-sawar",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -28,6 +28,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1A0010"
@@ -61,7 +62,9 @@
           "faceIDPermission": "Safe-Sawar uses Face ID for secure biometric verification."
         }
       ],
-      "expo-location"
+      "expo-location",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ]
   }
 }

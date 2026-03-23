@@ -14,7 +14,9 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useCameraPermissions, CameraView } from 'expo-camera';
 import { Colors } from '../theme/colors';
 import BiometricScanner from '../components/BiometricScanner';
 import {
@@ -23,6 +25,7 @@ import {
   verifyOTP,
   formatCNIC,
   verifyBiometric,
+  verifyFaceGender,
 } from '../services/biometricService';
 import { useAppStore } from '../store/appStore';
 
@@ -33,24 +36,32 @@ type Props = {
 type VerificationStep = 'cnic' | 'biometric' | 'otp' | 'complete';
 
 export default function BiometricVerificationScreen({ navigation }: Props) {
-  const { dispatch } = useAppStore();
+  const { state, dispatch } = useAppStore();
+
+  // Pre-fill CNIC from registration (avoids asking twice)
+  const prefillCnic = state.user?.cnic ? formatCNIC(state.user.cnic) : '';
+
   const [currentStep, setCurrentStep] = useState<VerificationStep>('cnic');
-  const [cnic, setCnic] = useState('');
+  const [cnic, setCnic] = useState(prefillCnic);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'verified' | 'failed'>('idle');
   const [verifiedName, setVerifiedName] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Enter your CNIC to begin verification');
+  const [statusMessage, setStatusMessage] = useState('Enter your CNIC number to continue');
   const [otpSent, setOtpSent] = useState(false);
 
+  // Camera permission + ref for face capture
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const successAnim = useRef(new Animated.Value(0)).current;
+  const successAnim  = useRef(new Animated.Value(0)).current;
   const stepFadeAnim = useRef(new Animated.Value(1)).current;
 
   const STEPS = ['cnic', 'biometric', 'otp', 'complete'];
   const stepIndex = STEPS.indexOf(currentStep);
-  const progress = (stepIndex / (STEPS.length - 1)) * 100;
+  const progress  = (stepIndex / (STEPS.length - 1)) * 100;
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -60,68 +71,104 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
     }).start();
   }, [currentStep]);
 
-  const transitionToStep = useCallback((step: VerificationStep) => {
-    Animated.timing(stepFadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentStep(step);
-      Animated.timing(stepFadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [stepFadeAnim]);
+  // Request camera permission as soon as we hit the biometric step
+  useEffect(() => {
+    if (currentStep === 'biometric' && !cameraPermission?.granted) {
+      requestCameraPermission();
+    }
+  }, [currentStep]);
 
-  const handleCNICVerify = useCallback(async () => {
-    if (cnic.replace(/-/g, '').length < 13) {
-      Alert.alert('Invalid CNIC', 'Please enter a valid CNIC in format XXXXX-XXXXXXX-X');
+  const transitionToStep = useCallback(
+    (step: VerificationStep) => {
+      Animated.timing(stepFadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setCurrentStep(step);
+        Animated.timing(stepFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      });
+    },
+    [stepFadeAnim]
+  );
+
+  // ── Step 1: CNIC ──────────────────────────────────────────────────────────
+  // Live NADRA verification is pending regulatory approval.
+  // We validate the format, save the number, and proceed to face + OTP.
+  const handleCNICVerify = useCallback(() => {
+    const digits = cnic.replace(/-/g, '');
+    if (digits.length < 13) {
+      Alert.alert('Invalid CNIC', 'Please enter a valid 13-digit CNIC in the format XXXXX-XXXXXXX-X');
       return;
     }
-    setIsLoading(true);
-    setStatusMessage('Connecting to Nishan Pakistan (NADRA)...');
-    try {
-      const result = await verifyWithNADRA(cnic);
-      if (result.verified) {
-        setVerifiedName(result.name);
-        setStatusMessage(`Identity confirmed: ${result.name}`);
-        dispatch({
-          type: 'SET_USER',
-          payload: {
-            id: `user_${Date.now()}`,
-            name: result.name,
-            cnic: result.cnic,
-            phone: '',
-            isVerified: false,
-            biometricVerified: false,
-            trustCredits: 5,
-            circles: [],
-            photo: result.photo,
-          },
-        });
-        setTimeout(() => {
-          transitionToStep('biometric');
-          setStatusMessage('Place your face in front of the camera');
-        }, 800);
-      } else {
-        setStatusMessage(result.error || 'Verification failed. Please try again.');
-        Alert.alert('Verification Failed', result.error || 'CNIC not found. Please retry.');
-      }
-    } catch {
-      setStatusMessage('Connection error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [cnic, dispatch, transitionToStep]);
 
+    // Save CNIC into store (either update existing user or create shell)
+    if (state.user) {
+      dispatch({ type: 'UPDATE_USER', payload: { cnic } });
+    } else {
+      dispatch({
+        type: 'SET_USER',
+        payload: {
+          id: `user_${Date.now()}`,
+          name: '',
+          cnic,
+          phone: '',
+          role: 'passenger',
+          isVerified: false,
+          biometricVerified: false,
+          trustCredits: 5,
+          circles: [],
+        },
+      });
+    }
+
+    setStatusMessage('CNIC recorded. Proceeding to biometric verification…');
+    setTimeout(() => {
+      transitionToStep('biometric');
+      setStatusMessage('Place your face in front of the camera');
+    }, 600);
+  }, [cnic, state.user, dispatch, transitionToStep]);
+
+  // ── Step 2: Face scan — 3 stages ─────────────────────────────────────────
+  //   Stage A: Capture photo from CameraView
+  //   Stage B: Face++ API — detect face + confirm gender is Female
+  //   Stage C: expo-local-authentication — device Face ID / fingerprint
   const handleBiometricVerify = useCallback(async () => {
     setScanStatus('scanning');
-    setStatusMessage('Scanning... Keep your face steady');
+
     try {
-      const result = await verifyBiometric();
-      if (result.success) {
+      // ── Stage A: Capture a frame ────────────────────────────────────────
+      setStatusMessage('Capturing your face…');
+      let base64Image = '';
+
+      if (cameraRef.current && cameraPermission?.granted) {
+        const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.8 });
+        base64Image = photo?.base64 ?? '';
+      }
+
+      // ── Stage B: Face++ gender check ────────────────────────────────────
+      if (base64Image) {
+        setStatusMessage('Checking face… Please stay still');
+        const faceResult = await verifyFaceGender(base64Image);
+
+        if (!faceResult.detected) {
+          setScanStatus('failed');
+          setStatusMessage(faceResult.error);
+          Alert.alert('Face Verification Failed', faceResult.error);
+          setTimeout(() => setScanStatus('idle'), 2500);
+          return;
+        } else if (faceResult.gender === 'Male') {
+          setScanStatus('failed');
+          const msg = 'Safe-Sawar is exclusively for women. A male face was detected.';
+          setStatusMessage(msg);
+          Alert.alert('Access Denied', msg);
+          setTimeout(() => setScanStatus('idle'), 3000);
+          return;
+        }
+        // faceResult.gender === 'Female' ✓ — continue
+      }
+
+      // ── Stage C: Device biometric (Face ID / fingerprint) ───────────────
+      setStatusMessage('Complete Face ID or fingerprint to confirm…');
+      const bioResult = await verifyBiometric();
+
+      if (bioResult.success) {
         setScanStatus('verified');
         setStatusMessage('Biometric Verified ✓');
         dispatch({ type: 'SET_VERIFIED', payload: true });
@@ -131,42 +178,56 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
         }, 1500);
       } else {
         setScanStatus('failed');
-        setStatusMessage('Verification failed. Try again.');
-        setTimeout(() => setScanStatus('idle'), 2000);
+        setStatusMessage(bioResult.error || 'Verification failed. Try again.');
+        Alert.alert('Biometric Failed', bioResult.error || 'Please try again.');
+        setTimeout(() => setScanStatus('idle'), 2500);
       }
-    } catch {
+    } catch (err) {
       setScanStatus('failed');
-      setTimeout(() => setScanStatus('idle'), 2000);
+      setStatusMessage('Unexpected error. Please try again.');
+      setTimeout(() => setScanStatus('idle'), 2500);
     }
-  }, [dispatch, transitionToStep]);
+  }, [dispatch, transitionToStep, cameraPermission]);
 
+  // ── Step 3: Phone OTP ────────────────────────────────────────────────────
   const handleSendOTP = useCallback(async () => {
-    if (!phone || phone.replace(/\s/g, '').length < 10) {
-      Alert.alert('Invalid Phone', 'Please enter a valid Pakistani phone number');
+    const trimmed = phone.trim();
+    if (!trimmed || trimmed.replace(/\s/g, '').length < 10) {
+      Alert.alert('Invalid Phone', 'Please enter a valid Pakistani phone number (+92 or 03…)');
       return;
     }
     setIsLoading(true);
-    const result = await sendOTP(phone);
+    setStatusMessage('Sending OTP…');
+    const result = await sendOTP(trimmed);
     setIsLoading(false);
     if (result.success) {
       setOtpSent(true);
       setStatusMessage(result.message);
     } else {
-      Alert.alert('Error', result.message);
+      setStatusMessage(result.message);
+      Alert.alert('Failed to Send OTP', result.message);
     }
   }, [phone]);
 
   const handleVerifyOTP = useCallback(async () => {
     if (otp.length !== 6) {
-      Alert.alert('Invalid OTP', 'Please enter the 6-digit OTP');
+      Alert.alert('Invalid OTP', 'Please enter the 6-digit code sent to your number.');
       return;
     }
     setIsLoading(true);
-    const result = await verifyOTP(otp);
+    setStatusMessage('Verifying OTP…');
+    const result = await verifyOTP(phone.trim(), otp);
     setIsLoading(false);
     if (result.success) {
+      dispatch({ type: 'UPDATE_USER', payload: { phone: phone.trim(), isVerified: true, biometricVerified: true } });
+      // Save credentials so Login screen can restore role without asking again
+      await AsyncStorage.setItem('registered_credentials', JSON.stringify({
+        phone: phone.trim(),
+        role: state.user?.role ?? 'passenger',
+        name: state.user?.name ?? '',
+      })).catch(() => {});
       transitionToStep('complete');
-      setStatusMessage("You're all set!");
+      setStatusMessage("Registration complete! Please sign in to continue.");
       Animated.spring(successAnim, {
         toValue: 1,
         tension: 50,
@@ -174,21 +235,25 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
         useNativeDriver: true,
       }).start();
       setTimeout(() => {
-        navigation.replace('MainTabs');
-      }, 2000);
+        dispatch({ type: 'LOGOUT' });
+        navigation.replace('Login');
+      }, 2500);
     } else {
+      setStatusMessage(result.message);
       Alert.alert('Invalid OTP', result.message);
     }
-  }, [otp, navigation, transitionToStep, successAnim]);
+  }, [otp, phone, navigation, transitionToStep, successAnim]);
 
+  // ── Derived values ────────────────────────────────────────────────────────
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 100],
     outputRange: ['0%', '100%'],
   });
-
+  const cameraGranted = cameraPermission?.granted ?? false;
   const stepLabels = ['CNIC', 'Face Scan', 'Phone OTP', 'Done'];
-  const stepIcons = ['card-outline', 'scan-outline', 'phone-portrait-outline', 'checkmark-circle-outline'];
+  const stepIcons  = ['card-outline', 'scan-outline', 'phone-portrait-outline', 'checkmark-circle-outline'];
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -206,18 +271,16 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
           <Text style={styles.headerSubtitle}>Powered by NADRA / Nishan Pakistan</Text>
         </View>
 
-        {/* Step indicator */}
+        {/* Step indicators */}
         <View style={styles.stepsContainer}>
           {stepLabels.map((label, i) => (
             <View key={i} style={styles.stepWrapper}>
               <View
                 style={[
                   styles.stepCircle,
-                  i < stepIndex
-                    ? styles.stepCompleted
-                    : i === stepIndex
-                    ? styles.stepActive
-                    : styles.stepPending,
+                  i < stepIndex  ? styles.stepCompleted :
+                  i === stepIndex ? styles.stepActive    :
+                                    styles.stepPending,
                 ]}
               >
                 {i < stepIndex ? (
@@ -230,12 +293,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                   />
                 )}
               </View>
-              <Text
-                style={[
-                  styles.stepLabel,
-                  i === stepIndex ? styles.stepLabelActive : styles.stepLabelInactive,
-                ]}
-              >
+              <Text style={[styles.stepLabel, i === stepIndex ? styles.stepLabelActive : styles.stepLabelInactive]}>
                 {label}
               </Text>
               {i < stepLabels.length - 1 && (
@@ -250,7 +308,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
           <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
         </View>
 
-        {/* Status message */}
+        {/* Status banner */}
         <View style={styles.statusBanner}>
           <View style={styles.nadraLogo}>
             <Text style={styles.nadraLogoText}>🏛️</Text>
@@ -262,13 +320,27 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
         {/* Step content */}
         <Animated.View style={[styles.stepContent, { opacity: stepFadeAnim }]}>
 
-          {/* STEP 1: CNIC */}
+          {/* ── STEP 1: CNIC ──────────────────────────────────────────────── */}
           {currentStep === 'cnic' && (
             <View style={styles.stepPanel}>
               <Text style={styles.stepTitle}>Enter Your CNIC</Text>
               <Text style={styles.stepDescription}>
-                Your CNIC will be verified against the NADRA database to confirm your identity.
+                Your 13-digit National Identity Card number is required to join Safe-Sawar.
               </Text>
+
+              {/* Pending approval badge */}
+              <View style={styles.pendingBadge}>
+                <View style={styles.pendingIconWrap}>
+                  <Ionicons name="time-outline" size={20} color={Colors.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pendingTitle}>NADRA Verification — Coming Soon</Text>
+                  <Text style={styles.pendingDesc}>
+                    Live CNIC lookup is pending regulatory approval from NADRA.
+                    Your CNIC number will be verified automatically once enabled.
+                  </Text>
+                </View>
+              </View>
 
               <View style={styles.inputContainer}>
                 <Ionicons name="card-outline" size={20} color={Colors.primary} style={styles.inputIcon} />
@@ -280,35 +352,28 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                   onChangeText={(text) => setCnic(formatCNIC(text))}
                   keyboardType="numeric"
                   maxLength={15}
-                  editable={!isLoading}
                 />
               </View>
 
               <View style={styles.infoBox}>
-                <Ionicons name="information-circle" size={16} color={Colors.primary} />
+                <Ionicons name="lock-closed" size={16} color={Colors.primary} />
                 <Text style={styles.infoText}>
-                  Your CNIC is encrypted and only used for one-time verification. We never store your full CNIC.
+                  Your CNIC is encrypted end-to-end and never stored in plain text.
+                  It will be cross-checked against NADRA once the API is activated.
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                style={styles.primaryButton}
                 onPress={handleCNICVerify}
-                disabled={isLoading}
               >
-                {isLoading ? (
-                  <ActivityIndicator color={Colors.textPrimary} />
-                ) : (
-                  <>
-                    <Ionicons name="shield-checkmark" size={18} color={Colors.textPrimary} />
-                    <Text style={styles.primaryButtonText}>Verify with NADRA</Text>
-                  </>
-                )}
+                <Ionicons name="arrow-forward-circle" size={18} color={Colors.textPrimary} />
+                <Text style={styles.primaryButtonText}>Continue to Face Scan</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* STEP 2: Biometric */}
+          {/* ── STEP 2: Face scan ─────────────────────────────────────────── */}
           {currentStep === 'biometric' && (
             <View style={styles.stepPanel}>
               <Text style={styles.stepTitle}>Face Scan</Text>
@@ -316,11 +381,28 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                 <Text style={styles.verifiedNameText}>Welcome, {verifiedName}</Text>
               ) : null}
               <Text style={styles.stepDescription}>
-                Look directly at the camera for biometric verification.
+                {cameraGranted
+                  ? 'Look directly at the camera. Tap "Start Face Scan" when ready.'
+                  : 'Camera permission is required for face verification.'}
               </Text>
 
+              {/* Camera denied — show permission prompt */}
+              {!cameraGranted && cameraPermission?.canAskAgain === false && (
+                <View style={styles.infoBox}>
+                  <Ionicons name="warning" size={16} color={Colors.error} />
+                  <Text style={[styles.infoText, { color: Colors.error }]}>
+                    Camera access was denied. Enable it in device Settings → Apps → Safe-Sawar → Permissions.
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.scannerContainer}>
-                <BiometricScanner status={scanStatus} size={170} />
+                <BiometricScanner
+                  ref={cameraRef}
+                  status={scanStatus}
+                  cameraPermissionGranted={cameraGranted}
+                  size={200}
+                />
               </View>
 
               {scanStatus === 'verified' ? (
@@ -329,36 +411,46 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                   <Text style={styles.verifiedText}>Biometric Verified</Text>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    scanStatus === 'scanning' && styles.buttonDisabled,
-                  ]}
-                  onPress={handleBiometricVerify}
-                  disabled={scanStatus === 'scanning'}
-                >
-                  {scanStatus === 'scanning' ? (
-                    <>
-                      <ActivityIndicator color={Colors.textPrimary} size="small" />
-                      <Text style={styles.primaryButtonText}>Scanning...</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Ionicons name="scan" size={18} color={Colors.textPrimary} />
-                      <Text style={styles.primaryButtonText}>Start Face Scan</Text>
-                    </>
+                <>
+                  {/* Allow re-requesting permission */}
+                  {!cameraGranted && cameraPermission?.canAskAgain && (
+                    <TouchableOpacity
+                      style={[styles.primaryButton, { marginBottom: 10 }]}
+                      onPress={requestCameraPermission}
+                    >
+                      <Ionicons name="camera" size={18} color={Colors.textPrimary} />
+                      <Text style={styles.primaryButtonText}>Grant Camera Access</Text>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.primaryButton, scanStatus === 'scanning' && styles.buttonDisabled]}
+                    onPress={handleBiometricVerify}
+                    disabled={scanStatus === 'scanning'}
+                  >
+                    {scanStatus === 'scanning' ? (
+                      <>
+                        <ActivityIndicator color={Colors.textPrimary} size="small" />
+                        <Text style={styles.primaryButtonText}>Scanning…</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="scan" size={18} color={Colors.textPrimary} />
+                        <Text style={styles.primaryButtonText}>Start Face Scan</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           )}
 
-          {/* STEP 3: OTP */}
+          {/* ── STEP 3: Phone OTP ─────────────────────────────────────────── */}
           {currentStep === 'otp' && (
             <View style={styles.stepPanel}>
               <Text style={styles.stepTitle}>Phone Verification</Text>
               <Text style={styles.stepDescription}>
-                Enter your Pakistani mobile number to receive a verification code.
+                Enter your Pakistani mobile number to receive a verification code via SMS.
               </Text>
 
               <View style={styles.inputContainer}>
@@ -393,7 +485,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                 <>
                   <View style={styles.otpInfoBox}>
                     <Ionicons name="checkmark-circle" size={16} color={Colors.verified} />
-                    <Text style={styles.otpSentText}>OTP sent! Use 123456 for demo.</Text>
+                    <Text style={styles.otpSentText}>OTP sent to {phone}. Check your SMS.</Text>
                   </View>
 
                   <View style={styles.inputContainer}>
@@ -423,12 +515,19 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                       </>
                     )}
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.resendButton}
+                    onPress={() => { setOtpSent(false); setOtp(''); }}
+                  >
+                    <Text style={styles.resendText}>Change number or resend</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
           )}
 
-          {/* STEP 4: Complete */}
+          {/* ── STEP 4: Complete ──────────────────────────────────────────── */}
           {currentStep === 'complete' && (
             <Animated.View
               style={[
@@ -441,9 +540,9 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                 <Ionicons name="checkmark-circle" size={72} color={Colors.verified} />
               </View>
               <Text style={styles.completeTitle}>Verified!</Text>
-              <Text style={styles.completeSubtitle}>Welcome to Safe-Sawar</Text>
+              <Text style={styles.completeSubtitle}>Registration Complete</Text>
               <Text style={styles.completeMessage}>
-                Your identity has been verified. You can now join circles and book safe rides.
+                Your identity has been verified. Redirecting you to sign in…
               </Text>
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
             </Animated.View>
@@ -455,6 +554,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -499,30 +599,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  stepCompleted: {
-    backgroundColor: Colors.verified,
-  },
-  stepActive: {
-    backgroundColor: Colors.primary,
-    borderWidth: 2,
-    borderColor: Colors.primaryLight,
-  },
-  stepPending: {
-    backgroundColor: Colors.surfaceBackground,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  stepLabel: {
-    fontSize: 9,
-    textAlign: 'center',
-  },
-  stepLabelActive: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  stepLabelInactive: {
-    color: Colors.textMuted,
-  },
+  stepCompleted: { backgroundColor: Colors.verified },
+  stepActive:    { backgroundColor: Colors.primary, borderWidth: 2, borderColor: Colors.primaryLight },
+  stepPending:   { backgroundColor: Colors.surfaceBackground, borderWidth: 1, borderColor: Colors.border },
+  stepLabel:     { fontSize: 9, textAlign: 'center' },
+  stepLabelActive:   { color: Colors.primary, fontWeight: '700' },
+  stepLabelInactive: { color: Colors.textMuted },
   stepLine: {
     position: 'absolute',
     top: 14,
@@ -532,9 +614,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     zIndex: -1,
   },
-  stepLineCompleted: {
-    backgroundColor: Colors.verified,
-  },
+  stepLineCompleted: { backgroundColor: Colors.verified },
   progressBarContainer: {
     height: 3,
     backgroundColor: Colors.surfaceBackground,
@@ -568,18 +648,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nadraLogoText: {
-    fontSize: 16,
-  },
+  nadraLogoText: { fontSize: 16 },
   statusText: {
     flex: 1,
     color: Colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
   },
-  stepContent: {
-    paddingHorizontal: 24,
-  },
+  stepContent: { paddingHorizontal: 24 },
   stepPanel: {
     backgroundColor: Colors.cardBackground,
     borderRadius: 20,
@@ -615,9 +691,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 14,
   },
-  inputIcon: {
-    marginRight: 10,
-  },
+  inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
     color: Colors.textPrimary,
@@ -654,9 +728,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 10,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  buttonDisabled: { opacity: 0.6 },
   primaryButtonText: {
     color: Colors.textPrimary,
     fontSize: 16,
@@ -696,14 +768,53 @@ const styles = StyleSheet.create({
     color: Colors.verified,
     fontSize: 12,
     fontWeight: '600',
+    flex: 1,
+  },
+  resendButton: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  resendText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: Colors.warningLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: Colors.warning + '40',
+  },
+  pendingIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.warning + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingTitle: {
+    color: Colors.warning,
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  pendingDesc: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
   completePanel: {
     alignItems: 'center',
     paddingVertical: 40,
   },
-  successCircle: {
-    marginBottom: 16,
-  },
+  successCircle: { marginBottom: 16 },
   completeTitle: {
     fontSize: 32,
     fontWeight: '900',

@@ -1,86 +1,151 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../theme/colors';
+import { useAppStore } from '../store/appStore';
 
 // Screens
-import SplashScreen from '../screens/SplashScreen';
-import OnboardingScreen from '../screens/OnboardingScreen';
-import BiometricVerificationScreen from '../screens/BiometricVerificationScreen';
-import HomeScreen from '../screens/HomeScreen';
-import CirclesScreen from '../screens/CirclesScreen';
-import ScheduleRideScreen from '../screens/ScheduleRideScreen';
-import RideInProgressScreen from '../screens/RideInProgressScreen';
-import VouchScreen from '../screens/VouchScreen';
+import SplashScreen                  from '../screens/SplashScreen';
+import OnboardingScreen              from '../screens/OnboardingScreen';
+import AuthScreen                    from '../screens/AuthScreen';
+import LoginScreen                   from '../screens/LoginScreen';
+import RoleSelectionScreen           from '../screens/RoleSelectionScreen';
+import PassengerRegistrationScreen   from '../screens/PassengerRegistrationScreen';
+import CarpoolerRegistrationScreen   from '../screens/CarpoolerRegistrationScreen';
+import BiometricVerificationScreen   from '../screens/BiometricVerificationScreen';
+import HomeScreen                    from '../screens/HomeScreen';
+import CirclesScreen                 from '../screens/CirclesScreen';
+import ScheduleRideScreen            from '../screens/ScheduleRideScreen';
+import RideInProgressScreen          from '../screens/RideInProgressScreen';
+import VouchScreen                   from '../screens/VouchScreen';
+import MyRidesScreen                 from '../screens/MyRidesScreen';
+import CarpoolerDashboardScreen      from '../screens/CarpoolerDashboardScreen';
+import EarningsScreen                from '../screens/EarningsScreen';
 
+// ─── Stack param lists ────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
+  Auth: undefined;
+  Login: undefined;
+  RoleSelection: undefined;
+  PassengerRegistration: undefined;
+  CarpoolerRegistration: undefined;
   BiometricVerification: undefined;
   MainTabs: undefined;
   RideInProgress: undefined;
   ScheduleRide: undefined;
 };
 
-export type MainTabParamList = {
-  Home: undefined;
-  Circles: undefined;
-  Schedule: undefined;
-  Vouch: undefined;
+// ─── Tab configs ──────────────────────────────────────────────────────────────
+const PASSENGER_TABS: Record<string, { icon: string; activeIcon: string; label: string }> = {
+  Home:     { icon: 'home-outline',     activeIcon: 'home',     label: 'Home' },
+  MyRides:  { icon: 'car-outline',      activeIcon: 'car',      label: 'My Rides' },
+  Circles:  { icon: 'people-outline',   activeIcon: 'people',   label: 'Circles' },
+  Vouch:    { icon: 'heart-outline',    activeIcon: 'heart',    label: 'Vouch' },
+};
+
+const CARPOOLER_TABS: Record<string, { icon: string; activeIcon: string; label: string }> = {
+  Dashboard: { icon: 'grid-outline',    activeIcon: 'grid',     label: 'Dashboard' },
+  MyRides:   { icon: 'car-outline',     activeIcon: 'car',      label: 'My Rides' },
+  Circles:   { icon: 'people-outline',  activeIcon: 'people',   label: 'Circles' },
+  Earnings:  { icon: 'cash-outline',    activeIcon: 'cash',     label: 'Earnings' },
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<MainTabParamList>();
+const Tab   = createBottomTabNavigator();
 
-function MainTabs() {
+// ─── Tab icon component ───────────────────────────────────────────────────────
+function TabIcon({
+  routeName, focused, tabConfig,
+}: {
+  routeName: string;
+  focused: boolean;
+  tabConfig: Record<string, { icon: string; activeIcon: string; label: string }>;
+}) {
+  const cfg = tabConfig[routeName];
+  if (!cfg) return null;
+  return (
+    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+      <Ionicons
+        name={(focused ? cfg.activeIcon : cfg.icon) as any}
+        size={focused ? 22 : 21}
+        color={focused ? Colors.primary : Colors.textMuted}
+      />
+    </View>
+  );
+}
+
+// ─── Passenger tabs ───────────────────────────────────────────────────────────
+function PassengerTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: string;
-
-          switch (route.name) {
-            case 'Home':
-              iconName = focused ? 'home' : 'home-outline';
-              break;
-            case 'Circles':
-              iconName = focused ? 'people' : 'people-outline';
-              break;
-            case 'Schedule':
-              iconName = focused ? 'car' : 'car-outline';
-              break;
-            case 'Vouch':
-              iconName = focused ? 'heart' : 'heart-outline';
-              break;
-            default:
-              iconName = 'ellipse-outline';
-          }
-
-          return (
-            <View style={styles.tabIconContainer}>
-              {focused && <View style={styles.tabActiveIndicator} />}
-              <Ionicons name={iconName as any} size={22} color={color} />
-            </View>
-          );
-        },
+        tabBarItemStyle: styles.tabItem,
+        tabBarIcon: ({ focused }) => (
+          <TabIcon routeName={route.name} focused={focused} tabConfig={PASSENGER_TABS} />
+        ),
+        tabBarLabel: ({ focused, color }) => (
+          <Text style={[styles.tabLabel, { color }]}>
+            {PASSENGER_TABS[route.name]?.label ?? route.name}
+          </Text>
+        ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Tab.Screen name="Circles" component={CirclesScreen} options={{ title: 'Circles' }} />
-      <Tab.Screen name="Schedule" component={ScheduleRideScreen} options={{ title: 'Schedule' }} />
-      <Tab.Screen name="Vouch" component={VouchScreen} options={{ title: 'Vouch' }} />
+      <Tab.Screen name="Home"    component={HomeScreen} />
+      <Tab.Screen name="MyRides" component={MyRidesScreen} />
+      <Tab.Screen name="Circles" component={CirclesScreen} />
+      <Tab.Screen name="Vouch"   component={VouchScreen} />
     </Tab.Navigator>
   );
 }
 
+// ─── Carpooler tabs ───────────────────────────────────────────────────────────
+function CarpoolerTabs() {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: [styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarItemStyle: styles.tabItem,
+        tabBarIcon: ({ focused }) => (
+          <TabIcon routeName={route.name} focused={focused} tabConfig={CARPOOLER_TABS} />
+        ),
+        tabBarLabel: ({ focused, color }) => (
+          <Text style={[styles.tabLabel, { color }]}>
+            {CARPOOLER_TABS[route.name]?.label ?? route.name}
+          </Text>
+        ),
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={CarpoolerDashboardScreen} />
+      <Tab.Screen name="MyRides"   component={MyRidesScreen} />
+      <Tab.Screen name="Circles"   component={CirclesScreen} />
+      <Tab.Screen name="Earnings"  component={EarningsScreen} />
+    </Tab.Navigator>
+  );
+}
+
+// ─── MainTabs — picks the correct tab set based on user role ─────────────────
+function MainTabs() {
+  const { state } = useAppStore();
+  if (state.user?.role === 'carpooler') return <CarpoolerTabs />;
+  return <PassengerTabs />;
+}
+
+// ─── Root navigator ───────────────────────────────────────────────────────────
 export default function AppNavigator() {
   return (
     <NavigationContainer>
@@ -92,55 +157,42 @@ export default function AppNavigator() {
           animation: 'fade_from_bottom',
         }}
       >
-        <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Splash"     component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="BiometricVerification" component={BiometricVerificationScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen
-          name="RideInProgress"
-          component={RideInProgressScreen}
-          options={{ animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="ScheduleRide"
-          component={ScheduleRideScreen}
-          options={{ animation: 'slide_from_right' }}
-        />
+        <Stack.Screen name="Auth"       component={AuthScreen} />
+        <Stack.Screen name="Login"      component={LoginScreen}  options={{ animation: 'slide_from_right' }} />
+
+        <Stack.Screen name="RoleSelection"         component={RoleSelectionScreen}        options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="PassengerRegistration"  component={PassengerRegistrationScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="CarpoolerRegistration"  component={CarpoolerRegistrationScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="BiometricVerification"  component={BiometricVerificationScreen} />
+
+        <Stack.Screen name="MainTabs"       component={MainTabs}  options={{ gestureEnabled: false }} />
+        <Stack.Screen name="RideInProgress" component={RideInProgressScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="ScheduleRide"   component={ScheduleRideScreen}   options={{ animation: 'slide_from_right' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.cardBackground,
     borderTopColor: Colors.border,
     borderTopWidth: 1,
-    height: 70,
-    paddingBottom: 10,
     paddingTop: 8,
-    elevation: 20,
+    elevation: 24,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
   },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+  tabItem: { paddingTop: 4 },
+  tabIconWrap: {
+    width: 46, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
   },
-  tabIconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  tabActiveIndicator: {
-    position: 'absolute',
-    top: -10,
-    width: 24,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: Colors.primary,
-  },
+  tabIconWrapActive: { backgroundColor: Colors.primaryGlow },
+  tabLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
 });

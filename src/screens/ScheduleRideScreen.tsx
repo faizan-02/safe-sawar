@@ -9,22 +9,56 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import RideMatchCard from '../components/RideMatchCard';
-import { matchRides, RideMatch, getRouteCoordinates } from '../services/rideMatchingService';
+import { matchRides, RideMatch, bookRide } from '../services/rideMatchingService';
 import { useAppStore } from '../store/appStore';
-import { bookRide } from '../services/rideMatchingService';
 
-const ISLAMABAD_REGION = {
-  latitude: 33.6844,
-  longitude: 73.0479,
-  latitudeDelta: 0.08,
-  longitudeDelta: 0.08,
-};
+// ── Nominatim geocoding (OpenStreetMap, free, no API key) ─────────────────────
+
+interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
+
+async function geocode(query: string): Promise<{ lat: number; lng: number; label: string } | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json` +
+      `&countrycodes=pk&limit=1&addressdetails=0`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SafeSawar/1.0 (carpooling app)' },
+    });
+    const data: NominatimResult[] = await res.json();
+    if (data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), label: data[0].display_name };
+  } catch {
+    return null;
+  }
+}
+
+async function autocomplete(query: string): Promise<string[]> {
+  if (query.length < 3) return [];
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json` +
+      `&countrycodes=pk&limit=5&addressdetails=0`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SafeSawar/1.0 (carpooling app)' },
+    });
+    const data: NominatimResult[] = await res.json();
+    // Return shortened display names (first two comma-separated parts)
+    return data.map(d => d.display_name.split(',').slice(0, 2).join(',').trim());
+  } catch {
+    return [];
+  }
+}
+
+// ── Fallback suggestions shown before the user has typed ──────────────────────
 
 const POPULAR_LOCATIONS = [
   'F-10 Markaz, Islamabad',
@@ -32,30 +66,125 @@ const POPULAR_LOCATIONS = [
   'G-9 Markaz, Islamabad',
   'PIMS Hospital, Islamabad',
   'NUST H-12, Islamabad',
-  'Quaid-i-Azam University',
-  'Comsats University, Islamabad',
+  'Quaid-i-Azam University, Islamabad',
+  'COMSATS University, Islamabad',
   'I-8 Markaz, Islamabad',
-  'F-6 Super Market',
+  'F-6 Super Market, Islamabad',
   'Centaurus Mall, Islamabad',
 ];
 
+
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export default function ScheduleRideScreen({ navigation }: any) {
   const { state, dispatch } = useAppStore();
+
+  // Location inputs
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Autocomplete
+  const [pickupSuggestions, setPickupSuggestions] = useState<string[]>([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState<string[]>([]);
+  const [showPickupSugg, setShowPickupSugg] = useState(false);
+  const [showDropoffSugg, setShowDropoffSugg] = useState(false);
+  const pickupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Search & results
   const [isSearching, setIsSearching] = useState(false);
   const [matches, setMatches] = useState<RideMatch[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
-  const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
   const [departureTime, setDepartureTime] = useState('Now');
-  const mapRef = useRef<MapView>(null);
 
-  const routeCoordinates = getRouteCoordinates(
-    { lat: 33.7294, lng: 73.0931 },
-    { lat: 33.6938, lng: 73.0652 }
-  );
+    // User location
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
 
+  // ── Get real user location on mount ────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationLoading(false);
+        return;
+      }
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch {
+        // ignore
+      } finally {
+        setLocationLoading(false);
+      }
+    })();
+  }, []);
+
+  // ── Debounced Nominatim autocomplete ───────────────────────────────────────
+  const onPickupChange = (text: string) => {
+    setPickup(text);
+    setPickupCoords(null); // coords stale when text changes
+    setShowPickupSugg(true);
+    if (pickupTimer.current) clearTimeout(pickupTimer.current);
+    if (text.length >= 3) {
+      pickupTimer.current = setTimeout(async () => {
+        const results = await autocomplete(text);
+        setPickupSuggestions(results.length > 0 ? results : POPULAR_LOCATIONS.filter(l =>
+          l.toLowerCase().includes(text.toLowerCase())
+        ));
+      }, 500);
+    } else {
+      setPickupSuggestions(POPULAR_LOCATIONS.filter(l =>
+        text.length > 0 && l.toLowerCase().includes(text.toLowerCase())
+      ));
+    }
+  };
+
+  const onDropoffChange = (text: string) => {
+    setDropoff(text);
+    setDropoffCoords(null);
+    setShowDropoffSugg(true);
+    if (dropoffTimer.current) clearTimeout(dropoffTimer.current);
+    if (text.length >= 3) {
+      dropoffTimer.current = setTimeout(async () => {
+        const results = await autocomplete(text);
+        setDropoffSuggestions(results.length > 0 ? results : POPULAR_LOCATIONS.filter(l =>
+          l.toLowerCase().includes(text.toLowerCase())
+        ));
+      }, 500);
+    } else {
+      setDropoffSuggestions(POPULAR_LOCATIONS.filter(l =>
+        text.length > 0 && l.toLowerCase().includes(text.toLowerCase())
+      ));
+    }
+  };
+
+  // When user picks a suggestion: geocode it and pin the marker
+  const selectPickup = async (label: string) => {
+    setPickup(label);
+    setShowPickupSugg(false);
+    const coords = await geocode(label);
+    if (coords) {
+      setPickupCoords(coords);
+      panToFit(coords, dropoffCoords);
+    }
+  };
+
+  const selectDropoff = async (label: string) => {
+    setDropoff(label);
+    setShowDropoffSugg(false);
+    const coords = await geocode(label);
+    if (coords) {
+      setDropoffCoords(coords);
+      panToFit(pickupCoords, coords);
+    }
+  };
+
+  const panToFit = (_p: any, _d: any) => {}; // no-op without map
+
+  // ── Search for ride matches ─────────────────────────────────────────────────
   const handleSearch = useCallback(async () => {
     if (!pickup || !dropoff) {
       Alert.alert('Missing Info', 'Please enter both pickup and drop-off locations.');
@@ -64,6 +193,14 @@ export default function ScheduleRideScreen({ navigation }: any) {
     setIsSearching(true);
     setHasSearched(true);
     try {
+      // Geocode if not done yet (user typed without picking suggestion)
+      let pCoords = pickupCoords;
+      let dCoords = dropoffCoords;
+      if (!pCoords) { pCoords = await geocode(pickup); if (pCoords) setPickupCoords(pCoords); }
+      if (!dCoords) { dCoords = await geocode(dropoff); if (dCoords) setDropoffCoords(dCoords); }
+
+      if (pCoords && dCoords) panToFit(pCoords, dCoords);
+
       const results = await matchRides(pickup, dropoff);
       setMatches(results);
     } catch {
@@ -71,8 +208,9 @@ export default function ScheduleRideScreen({ navigation }: any) {
     } finally {
       setIsSearching(false);
     }
-  }, [pickup, dropoff]);
+  }, [pickup, dropoff, pickupCoords, dropoffCoords]);
 
+  // ── Book a ride ────────────────────────────────────────────────────────────
   const handleBook = useCallback(async (match: RideMatch) => {
     Alert.alert(
       `Book with ${match.driverName}?`,
@@ -95,13 +233,13 @@ export default function ScheduleRideScreen({ navigation }: any) {
                   carPlate: match.carPlate,
                   status: 'waiting',
                   pickupLocation: {
-                    lat: match.route.pickup.lat,
-                    lng: match.route.pickup.lng,
+                    lat: pickupCoords?.lat ?? match.route.pickup.lat,
+                    lng: pickupCoords?.lng ?? match.route.pickup.lng,
                     address: pickup,
                   },
                   dropoffLocation: {
-                    lat: match.route.dropoff.lat,
-                    lng: match.route.dropoff.lng,
+                    lat: dropoffCoords?.lat ?? match.route.dropoff.lat,
+                    lng: dropoffCoords?.lng ?? match.route.dropoff.lng,
                     address: dropoff,
                   },
                 },
@@ -112,15 +250,10 @@ export default function ScheduleRideScreen({ navigation }: any) {
         },
       ]
     );
-  }, [pickup, dropoff, dispatch, navigation]);
+  }, [pickup, dropoff, pickupCoords, dropoffCoords, dispatch, navigation]);
 
-  const pickupSuggestions = POPULAR_LOCATIONS.filter(loc =>
-    pickup.length > 0 && loc.toLowerCase().includes(pickup.toLowerCase())
-  );
-  const dropoffSuggestions = POPULAR_LOCATIONS.filter(loc =>
-    dropoff.length > 0 && loc.toLowerCase().includes(dropoff.toLowerCase())
-  );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -136,58 +269,36 @@ export default function ScheduleRideScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Map */}
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            provider={PROVIDER_DEFAULT}
-            initialRegion={ISLAMABAD_REGION}
-            showsUserLocation
-            showsMyLocationButton={false}
-            customMapStyle={mapStyle}
-          >
-            {/* Route polyline */}
-            {hasSearched && (
-              <Polyline
-                coordinates={routeCoordinates}
-                strokeColor={Colors.routeColor}
-                strokeWidth={3}
-                lineDashPattern={[0]}
-              />
+        {/* Location status card */}
+        <View style={styles.locationCard}>
+          <View style={styles.locationCardRow}>
+            {locationLoading ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Ionicons name="navigate-circle" size={22} color={Colors.primary} />
             )}
-
-            {/* Islamabad center marker */}
-            <Marker
-              coordinate={{ latitude: 33.7294, longitude: 73.0931 }}
-              title="Pickup Area"
-            >
-              <View style={styles.markerContainer}>
-                <View style={[styles.marker, { backgroundColor: Colors.primary }]}>
-                  <Ionicons name="location" size={14} color="white" />
-                </View>
-              </View>
-            </Marker>
-            <Marker
-              coordinate={{ latitude: 33.6938, longitude: 73.0652 }}
-              title="Drop-off Area"
-            >
-              <View style={styles.markerContainer}>
-                <View style={[styles.marker, { backgroundColor: Colors.verified }]}>
-                  <Ionicons name="flag" size={12} color="white" />
-                </View>
-              </View>
-            </Marker>
-          </MapView>
-
-          {/* Map overlay: city label */}
-          <View style={styles.mapLabel}>
-            <Ionicons name="location" size={12} color={Colors.primary} />
-            <Text style={styles.mapLabelText}>Islamabad, Pakistan</Text>
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.locationCardTitle}>
+                {locationLoading ? 'Getting your location...' : userLocation ? 'Location detected' : 'Location unavailable'}
+              </Text>
+              <Text style={styles.locationCardSub}>
+                {userLocation
+                  ? `${userLocation.latitude.toFixed(4)}, ${userLocation.longitude.toFixed(4)}`
+                  : 'Enable location permission for better results'}
+              </Text>
+            </View>
           </View>
+          {pickupCoords && dropoffCoords && (
+            <View style={styles.routePreview}>
+              <View style={styles.routeDot} />
+              <View style={styles.routeLine} />
+              <View style={[styles.routeDot, { backgroundColor: Colors.verified }]} />
+              <Text style={styles.routePreviewText}>Route ready</Text>
+            </View>
+          )}
         </View>
 
-        {/* Ride inputs */}
+        {/* Input card */}
         <View style={styles.inputsCard}>
           {/* Pickup */}
           <View style={styles.locationRow}>
@@ -201,34 +312,28 @@ export default function ScheduleRideScreen({ navigation }: any) {
                 placeholder="Pickup location"
                 placeholderTextColor={Colors.textMuted}
                 value={pickup}
-                onChangeText={(t) => {
-                  setPickup(t);
-                  setShowPickupSuggestions(true);
-                }}
-                onFocus={() => setShowPickupSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowPickupSuggestions(false), 200)}
+                onChangeText={onPickupChange}
+                onFocus={() => setShowPickupSugg(true)}
+                onBlur={() => setTimeout(() => setShowPickupSugg(false), 200)}
               />
               {pickup ? (
-                <TouchableOpacity onPress={() => setPickup('')}>
+                <TouchableOpacity onPress={() => { setPickup(''); setPickupCoords(null); }}>
                   <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
                 </TouchableOpacity>
               ) : null}
             </View>
           </View>
 
-          {showPickupSuggestions && pickupSuggestions.length > 0 && (
+          {showPickupSugg && pickupSuggestions.length > 0 && (
             <ScrollView style={styles.suggestions} nestedScrollEnabled>
-              {pickupSuggestions.slice(0, 4).map((s, i) => (
+              {pickupSuggestions.slice(0, 5).map((s, i) => (
                 <TouchableOpacity
                   key={i}
                   style={styles.suggestionItem}
-                  onPress={() => {
-                    setPickup(s);
-                    setShowPickupSuggestions(false);
-                  }}
+                  onPress={() => selectPickup(s)}
                 >
                   <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
-                  <Text style={styles.suggestionText}>{s}</Text>
+                  <Text style={styles.suggestionText} numberOfLines={1}>{s}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -236,7 +341,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
 
           <View style={styles.inputDivider} />
 
-          {/* Dropoff */}
+          {/* Drop-off */}
           <View style={styles.locationRow}>
             <View style={styles.dotIndicator}>
               <View style={styles.dotDropoff} />
@@ -247,34 +352,28 @@ export default function ScheduleRideScreen({ navigation }: any) {
                 placeholder="Drop-off location"
                 placeholderTextColor={Colors.textMuted}
                 value={dropoff}
-                onChangeText={(t) => {
-                  setDropoff(t);
-                  setShowDropoffSuggestions(true);
-                }}
-                onFocus={() => setShowDropoffSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowDropoffSuggestions(false), 200)}
+                onChangeText={onDropoffChange}
+                onFocus={() => setShowDropoffSugg(true)}
+                onBlur={() => setTimeout(() => setShowDropoffSugg(false), 200)}
               />
               {dropoff ? (
-                <TouchableOpacity onPress={() => setDropoff('')}>
+                <TouchableOpacity onPress={() => { setDropoff(''); setDropoffCoords(null); }}>
                   <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
                 </TouchableOpacity>
               ) : null}
             </View>
           </View>
 
-          {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
+          {showDropoffSugg && dropoffSuggestions.length > 0 && (
             <ScrollView style={styles.suggestions} nestedScrollEnabled>
-              {dropoffSuggestions.slice(0, 4).map((s, i) => (
+              {dropoffSuggestions.slice(0, 5).map((s, i) => (
                 <TouchableOpacity
                   key={i}
                   style={styles.suggestionItem}
-                  onPress={() => {
-                    setDropoff(s);
-                    setShowDropoffSuggestions(false);
-                  }}
+                  onPress={() => selectDropoff(s)}
                 >
                   <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
-                  <Text style={styles.suggestionText}>{s}</Text>
+                  <Text style={styles.suggestionText} numberOfLines={1}>{s}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -354,102 +453,33 @@ export default function ScheduleRideScreen({ navigation }: any) {
   );
 }
 
-const mapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#1a0010' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#d4a0c0' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a0010' }] },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#3d0022' }],
-  },
-  {
-    featureType: 'road.arterial',
-    elementType: 'geometry',
-    stylers: [{ color: '#4a0028' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#0d001a' }],
-  },
-  {
-    featureType: 'poi',
-    stylers: [{ visibility: 'off' }],
-  },
-];
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 54,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: Colors.primary,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  mapContainer: {
-    height: 200,
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { paddingHorizontal: 20, paddingTop: 54, paddingBottom: 12 },
+  headerTitle: { fontSize: 24, fontWeight: '900', color: Colors.textPrimary },
+  headerSubtitle: { fontSize: 13, color: Colors.primary, marginTop: 2, fontWeight: '500' },
+  scrollContent: { paddingBottom: 40 },
+
+  locationCard: {
     marginHorizontal: 20,
     borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 14,
+    backgroundColor: Colors.cardBackground,
     borderWidth: 1,
     borderColor: Colors.border,
-    position: 'relative',
+    padding: 16,
+    marginBottom: 14,
   },
-  map: {
-    flex: 1,
-  },
-  mapLabel: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.overlayBackground,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 4,
-  },
-  mapLabelText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  markerContainer: {
-    alignItems: 'center',
-  },
-  marker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-  },
+  locationCardRow: { flexDirection: 'row', alignItems: 'center' },
+  locationCardTitle: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  locationCardSub: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
+  routePreview: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 6 },
+  routeDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  routeLine: { flex: 1, height: 2, backgroundColor: Colors.primary, opacity: 0.4 },
+  routePreviewText: { color: Colors.primary, fontSize: 12, fontWeight: '600' },
+
   inputsCard: {
     backgroundColor: Colors.cardBackground,
     marginHorizontal: 20,
@@ -459,54 +489,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: 14,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  dotIndicator: {
-    width: 20,
-    alignItems: 'center',
-  },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dotIndicator: { width: 20, alignItems: 'center' },
   dotPickup: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 12, height: 12, borderRadius: 6,
     backgroundColor: Colors.primary,
-    borderWidth: 2,
-    borderColor: Colors.primaryLight,
+    borderWidth: 2, borderColor: Colors.primaryLight,
   },
-  dotDropoff: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-    backgroundColor: Colors.verified,
-  },
-  dotLine: {
-    width: 2,
-    height: 20,
-    backgroundColor: Colors.border,
-    marginTop: 4,
-  },
-  inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationInput: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 14,
-    paddingVertical: 10,
-  },
+  dotDropoff: { width: 12, height: 12, borderRadius: 3, backgroundColor: Colors.verified },
+  dotLine: { width: 2, height: 20, backgroundColor: Colors.border, marginTop: 4 },
+  inputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  locationInput: { flex: 1, color: Colors.textPrimary, fontSize: 14, paddingVertical: 10 },
   inputDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginLeft: 30,
-    marginVertical: 4,
+    height: 1, backgroundColor: Colors.border, marginLeft: 30, marginVertical: 4,
   },
   suggestions: {
-    maxHeight: 140,
+    maxHeight: 160,
     backgroundColor: Colors.surfaceBackground,
     borderRadius: 8,
     marginLeft: 30,
@@ -521,10 +519,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  suggestionText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-  },
+  suggestionText: { flex: 1, color: Colors.textSecondary, fontSize: 13 },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -533,11 +528,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     flexWrap: 'wrap',
   },
-  timeLabel: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  timeLabel: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
   timeChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -546,18 +537,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  timeChipActive: {
-    backgroundColor: Colors.primaryGlow,
-    borderColor: Colors.primary,
-  },
-  timeChipText: {
-    color: Colors.textMuted,
-    fontSize: 12,
-  },
-  timeChipTextActive: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
+  timeChipActive: { backgroundColor: Colors.primaryGlow, borderColor: Colors.primary },
+  timeChipText: { color: Colors.textMuted, fontSize: 12 },
+  timeChipTextActive: { color: Colors.primary, fontWeight: '700' },
   searchButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,58 +554,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 10,
   },
-  searchButtonDisabled: {
-    opacity: 0.7,
-  },
-  searchButtonText: {
-    color: Colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  resultsSection: {
-    paddingHorizontal: 20,
-  },
+  searchButtonDisabled: { opacity: 0.7 },
+  searchButtonText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
+
+  resultsSection: { paddingHorizontal: 20 },
   resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
-  resultsTitle: {
-    color: Colors.textPrimary,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  resultsSubtitle: {
-    color: Colors.textMuted,
-    fontSize: 12,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 12,
-  },
-  loadingText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-  },
-  noResults: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  noResultsEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  noResultsTitle: {
-    color: Colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  noResultsText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  resultsTitle: { color: Colors.textPrimary, fontSize: 17, fontWeight: '800' },
+  resultsSubtitle: { color: Colors.textMuted, fontSize: 12 },
+  loadingContainer: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  loadingText: { color: Colors.textMuted, fontSize: 14 },
+  noResults: { alignItems: 'center', paddingVertical: 40 },
+  noResultsEmoji: { fontSize: 48, marginBottom: 12 },
+  noResultsTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  noResultsText: { color: Colors.textMuted, fontSize: 14, textAlign: 'center' },
 });

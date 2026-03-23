@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -73,16 +74,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     });
   };
 
+  const markSeenAndGo = () => {
+    AsyncStorage.setItem('has_seen_onboarding', 'true').catch(() => {});
+    navigation.replace('Auth');
+  };
+
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {
       goToSlide(currentSlide + 1);
     } else {
-      navigation.replace('BiometricVerification');
+      markSeenAndGo();
     }
   };
 
   const handleSkip = () => {
-    navigation.replace('BiometricVerification');
+    markSeenAndGo();
   };
 
   const slide = slides[currentSlide];
@@ -168,7 +174,7 @@ export default function OnboardingScreen({ navigation }: Props) {
             {currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}
           </Text>
           <Ionicons
-            name={currentSlide === slides.length - 1 ? 'checkmark-circle' : 'arrow-forward'}
+            name={currentSlide === slides.length - 1 ? 'arrow-forward' : 'arrow-forward'}
             size={20}
             color={Colors.textPrimary}
           />

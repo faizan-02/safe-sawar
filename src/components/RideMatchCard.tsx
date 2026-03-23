@@ -26,7 +26,9 @@ function StarRating({ rating }: { rating: number }) {
           color="#FFB300"
         />
       ))}
-      <Text style={{ color: '#FFB300', fontSize: 11, marginLeft: 2 }}>{rating.toFixed(1)}</Text>
+      <Text style={{ color: '#FFB300', fontSize: 11, marginLeft: 2, fontWeight: '700' }}>
+        {rating.toFixed(1)}
+      </Text>
     </View>
   );
 }
@@ -34,80 +36,91 @@ function StarRating({ rating }: { rating: number }) {
 export default function RideMatchCard({ match, onBook }: RideMatchCardProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true }).start();
-  };
+  const handlePressIn  = () => Animated.spring(scaleAnim, { toValue: 0.975, useNativeDriver: true, speed: 30 }).start();
+  const handlePressOut = () => Animated.spring(scaleAnim, { toValue: 1,     useNativeDriver: true, speed: 30 }).start();
 
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-  };
+  // Use first letter of driver name as avatar initial
+  const initial = match.driverName?.charAt(0)?.toUpperCase() ?? '?';
 
   return (
     <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
+      {/* Top accent strip */}
+      <View style={styles.accentStrip} />
+
       <TouchableOpacity
         activeOpacity={1}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={styles.touchable}
+        style={styles.inner}
       >
-        {/* Avatar + Info */}
-        <View style={styles.mainRow}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>{match.driverAvatar}</Text>
+        {/* ── Driver row ─────────────────────────────────────────────── */}
+        <View style={styles.driverRow}>
+          {/* Avatar */}
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            </View>
             {match.isVerified && (
-              <View style={styles.verifiedBadgeSmall}>
-                <Ionicons name="checkmark" size={8} color={Colors.textPrimary} />
+              <View style={styles.verifiedDot}>
+                <Ionicons name="checkmark" size={7} color="#fff" />
               </View>
             )}
           </View>
 
-          <View style={styles.infoSection}>
-            <View style={styles.nameRow}>
-              <Text style={styles.driverName}>{match.driverName}</Text>
-              <StarRating rating={match.rating} />
-            </View>
+          {/* Name + rating */}
+          <View style={styles.driverMeta}>
+            <Text style={styles.driverName}>{match.driverName}</Text>
+            <StarRating rating={match.rating} />
+          </View>
 
-            {/* Circle badge */}
-            <View style={styles.circleBadge}>
-              <Ionicons name="shield-checkmark" size={10} color={Colors.verified} />
-              <Text style={styles.circleBadgeText}>Verified Circle</Text>
-              <Text style={styles.circleNameText}>{match.circleName}</Text>
-            </View>
-
-            {/* Vouch info */}
-            <View style={styles.vouchRow}>
-              <Ionicons name="people" size={11} color={Colors.textMuted} />
-              <Text style={styles.vouchText}>
-                Vouched by {match.vouchCount} women
-              </Text>
-              <View style={styles.dotSeparator} />
-              <Ionicons name="car" size={11} color={Colors.textMuted} />
-              <Text style={styles.carText}>{match.car} ({match.carColor})</Text>
-            </View>
+          {/* ETA pill */}
+          <View style={styles.etaPill}>
+            <Ionicons name="time-outline" size={11} color={Colors.primary} />
+            <Text style={styles.etaText}>{match.eta}</Text>
           </View>
         </View>
 
-        {/* Bottom row: ETA + Seats + Book */}
-        <View style={styles.bottomRow}>
-          <View style={styles.etaContainer}>
-            <Ionicons name="time-outline" size={14} color={Colors.primary} />
-            <Text style={styles.etaText}>{match.eta}</Text>
+        {/* ── Circle badge ────────────────────────────────────────────── */}
+        <View style={styles.circleBadge}>
+          <Ionicons name="shield-checkmark" size={11} color={Colors.verified} />
+          <Text style={styles.circleBadgeText}>Verified Circle</Text>
+          <Text style={styles.circleNameText}>• {match.circleName}</Text>
+        </View>
+
+        {/* ── Car info ─────────────────────────────────────────────────── */}
+        <View style={styles.carRow}>
+          <View style={styles.carInfo}>
+            <Ionicons name="car-outline" size={13} color={Colors.textMuted} />
+            <Text style={styles.carText}>{match.car}</Text>
+            <View style={styles.carColorDot} />
+            <Text style={styles.carColorText}>{match.carColor}</Text>
+          </View>
+          <View style={styles.platePill}>
+            <Text style={styles.plateText}>{match.carPlate}</Text>
+          </View>
+        </View>
+
+        {/* ── Vouches ──────────────────────────────────────────────────── */}
+        <View style={styles.vouchRow}>
+          <Ionicons name="people-outline" size={12} color={Colors.textMuted} />
+          <Text style={styles.vouchText}>{match.vouchCount} women vouched for her</Text>
+        </View>
+
+        {/* ── Divider ──────────────────────────────────────────────────── */}
+        <View style={styles.divider} />
+
+        {/* ── Footer row ───────────────────────────────────────────────── */}
+        <View style={styles.footerRow}>
+          <View style={styles.seatsWrap}>
+            <Ionicons name="person-outline" size={13} color={Colors.textMuted} />
+            <Text style={styles.seatsText}>{match.seatsAvailable} seats left</Text>
           </View>
 
-          <View style={styles.seatsContainer}>
-            <Ionicons name="person-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.seatsText}>{match.seatsAvailable} seats</Text>
-          </View>
+          <Text style={styles.priceText}>{match.priceEstimate}</Text>
 
-          <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>{match.priceEstimate}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.bookButton}
-            onPress={() => onBook(match)}
-          >
-            <Text style={styles.bookButtonText}>Book</Text>
+          <TouchableOpacity style={styles.bookBtn} onPress={() => onBook(match)}>
+            <Text style={styles.bookBtnText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={13} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -118,143 +131,98 @@ export default function RideMatchCard({ match, onBook }: RideMatchCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  touchable: {
-    padding: 14,
-  },
-  mainRow: {
-    flexDirection: 'row',
     marginBottom: 12,
-    gap: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
-  avatarContainer: {
-    position: 'relative',
-    width: 50,
-    height: 50,
-  },
-  avatarEmoji: {
-    fontSize: 36,
-    lineHeight: 50,
-  },
-  verifiedBadgeSmall: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.verified,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoSection: {
-    flex: 1,
-    gap: 5,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  driverName: {
-    color: Colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  circleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.verifiedLight,
-    alignSelf: 'flex-start',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    gap: 4,
-  },
-  circleBadgeText: {
-    color: Colors.verified,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  circleNameText: {
-    color: Colors.verified,
-    fontSize: 10,
-    opacity: 0.8,
-  },
-  vouchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
-  },
-  vouchText: {
-    color: Colors.textMuted,
-    fontSize: 11,
-  },
-  dotSeparator: {
-    width: 3,
+  accentStrip: {
     height: 3,
-    borderRadius: 1.5,
+    backgroundColor: Colors.primary,
+    opacity: 0.7,
+  },
+  inner: { padding: 16 },
+
+  // Driver row
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  avatarWrap: { position: 'relative' },
+  avatar: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: Colors.primaryDark,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.primary + '60',
+  },
+  avatarInitial: { color: Colors.textPrimary, fontSize: 20, fontWeight: '800' },
+  verifiedDot: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: Colors.verified,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: Colors.cardBackground,
+  },
+  driverMeta: { flex: 1, gap: 4 },
+  driverName: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  etaPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.primaryGlow, borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: Colors.primary + '40',
+  },
+  etaText: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
+
+  // Circle badge
+  circleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.verifiedLight, alignSelf: 'flex-start',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+    marginBottom: 10,
+  },
+  circleBadgeText: { color: Colors.verified, fontSize: 11, fontWeight: '700' },
+  circleNameText: { color: Colors.verified, fontSize: 11, opacity: 0.85 },
+
+  // Car row
+  carRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 8,
+  },
+  carInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  carText: { color: Colors.textSecondary, fontSize: 13 },
+  carColorDot: {
+    width: 6, height: 6, borderRadius: 3,
     backgroundColor: Colors.textMuted,
   },
-  carText: {
-    color: Colors.textMuted,
-    fontSize: 11,
+  carColorText: { color: Colors.textMuted, fontSize: 12 },
+  platePill: {
+    backgroundColor: Colors.surfaceBackground,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+  plateText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+
+  // Vouch
+  vouchRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  vouchText: { color: Colors.textMuted, fontSize: 12 },
+
+  divider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
+
+  // Footer
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  seatsWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  seatsText: { color: Colors.textMuted, fontSize: 12 },
+  priceText: { flex: 1, color: Colors.textSecondary, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  bookBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.primary, borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 10,
+    elevation: 4, shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4, shadowRadius: 8,
   },
-  etaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: Colors.primaryGlow,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  etaText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  seatsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  seatsText: {
-    color: Colors.textMuted,
-    fontSize: 11,
-  },
-  priceContainer: {
-    flex: 1,
-  },
-  priceText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    textAlign: 'right',
-    marginRight: 4,
-  },
-  bookButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-  },
-  bookButtonText: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
+  bookBtnText: { color: Colors.textPrimary, fontSize: 13, fontWeight: '800' },
 });

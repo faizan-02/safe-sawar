@@ -1,78 +1,51 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-} from 'react-native';
+import React, { useEffect, useRef, forwardRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView } from 'expo-camera';
 import { Colors } from '../theme/colors';
 
 interface BiometricScannerProps {
   status: 'idle' | 'scanning' | 'verified' | 'failed';
+  /** Camera permission has been granted — enables live camera feed */
+  cameraPermissionGranted?: boolean;
   size?: number;
 }
 
-export default function BiometricScanner({ status, size = 160 }: BiometricScannerProps) {
+/**
+ * Wrap with forwardRef so the parent screen can call
+ * ref.current.takePictureAsync() to capture a frame for Face++ analysis.
+ */
+const BiometricScanner = forwardRef<CameraView, BiometricScannerProps>(function BiometricScanner({
+  status,
+  cameraPermissionGranted = false,
+  size = 160,
+}, cameraRef) {
   const scanAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  const hexPoints = (cx: number, cy: number, r: number) => {
-    return Array.from({ length: 6 }, (_, i) => {
-      const angle = (Math.PI / 180) * (60 * i - 30);
-      return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-    }).join(' ');
-  };
-
+  // ── Animations ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (status === 'scanning') {
-      // Scanning animation: scan line moves
       const scan = Animated.loop(
         Animated.sequence([
-          Animated.timing(scanAnim, {
-            toValue: 1,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scanAnim, {
-            toValue: 0,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
+          Animated.timing(scanAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
+          Animated.timing(scanAnim, { toValue: 0, duration: 1800, useNativeDriver: true }),
         ])
       );
-
-      // Pulsing ring
       const pulse = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.08,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 900,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
         ])
       );
-
-      // Rotating outer ring
       const rotate = Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        })
+        Animated.timing(rotateAnim, { toValue: 1, duration: 3000, useNativeDriver: true })
       );
-
       scan.start();
       pulse.start();
       rotate.start();
-
       return () => {
         scan.stop();
         pulse.stop();
@@ -85,6 +58,9 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
         friction: 8,
         useNativeDriver: true,
       }).start();
+    } else {
+      // Reset fade when going back to idle / failed
+      fadeAnim.setValue(0);
     }
   }, [status]);
 
@@ -92,29 +68,29 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
     inputRange: [0, 1],
     outputRange: [-size / 2, size / 2],
   });
-
   const rotateInterp = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
 
-  const cx = size / 2;
-  const cy = size / 2;
-
   const getStatusColor = () => {
     switch (status) {
       case 'scanning': return Colors.primary;
       case 'verified': return Colors.verified;
-      case 'failed': return Colors.error;
-      default: return Colors.textMuted;
+      case 'failed':   return Colors.error;
+      default:         return Colors.textMuted;
     }
   };
-
   const statusColor = getStatusColor();
+
+  // ── Whether to show the live camera ──────────────────────────────────────
+  const showCamera =
+    cameraPermissionGranted && (status === 'idle' || status === 'scanning');
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Rotating outer hexagon ring */}
+
+      {/* ── Rotating outer ring (scanning only) ─────────────────────────── */}
       {status === 'scanning' && (
         <Animated.View
           style={[
@@ -123,14 +99,14 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
               width: size + 20,
               height: size + 20,
               borderRadius: (size + 20) / 2,
-              transform: [{ rotate: rotateInterp }],
               borderColor: Colors.primary,
+              transform: [{ rotate: rotateInterp }],
             },
           ]}
         />
       )}
 
-      {/* Pulsing background */}
+      {/* ── Pulsing background ───────────────────────────────────────────── */}
       <Animated.View
         style={[
           styles.pulseBackground,
@@ -144,40 +120,49 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
         ]}
       />
 
-      {/* Main hexagon shape (simulated with bordered circle) */}
+      {/* ── Main face frame ──────────────────────────────────────────────── */}
       <View
         style={[
-          styles.hexagonContainer,
+          styles.faceFrame,
           {
             width: size * 0.85,
             height: size * 0.85,
             borderRadius: size * 0.15,
             borderColor: statusColor,
             borderWidth: status === 'verified' ? 3 : 2,
-            overflow: 'hidden',
           },
         ]}
       >
-        {/* Inner face area */}
-        <View style={[styles.faceArea, { backgroundColor: statusColor + '10' }]}>
-          {status === 'idle' && (
+        {/* Live camera feed (front camera) — ref exposed for photo capture */}
+        {showCamera && (
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="front"
+          />
+        )}
+
+        {/* Content overlay on top of camera (or standalone when no camera) */}
+        <View style={[styles.overlay, { backgroundColor: showCamera ? 'transparent' : statusColor + '10' }]}>
+
+          {/* Idle — no camera permission yet */}
+          {status === 'idle' && !cameraPermissionGranted && (
             <Ionicons name="scan" size={size * 0.35} color={Colors.textMuted} />
           )}
 
+          {/* Scanning — face outline + scan line */}
           {status === 'scanning' && (
             <>
-              {/* Face outline lines */}
-              <View style={styles.faceOutline}>
-                {/* Face shape lines */}
-                <View style={[styles.faceLine, { width: '60%', top: '30%' }]} />
-                <View style={[styles.faceLine, { width: '40%', top: '50%' }]} />
-                <View style={[styles.faceLine, { width: '50%', top: '65%' }]} />
-                {/* Eye dots */}
-                <View style={[styles.eyeDot, { left: '30%', top: '38%' }]} />
-                <View style={[styles.eyeDot, { right: '30%', top: '38%' }]} />
-              </View>
-
-              {/* Animated scan line */}
+              {!cameraPermissionGranted && (
+                <View style={styles.faceOutline}>
+                  <View style={[styles.faceLine, { width: '60%', top: '30%' }]} />
+                  <View style={[styles.faceLine, { width: '40%', top: '50%' }]} />
+                  <View style={[styles.faceLine, { width: '50%', top: '65%' }]} />
+                  <View style={[styles.eyeDot, { left: '30%', top: '38%' }]} />
+                  <View style={[styles.eyeDot, { right: '30%', top: '38%' }]} />
+                </View>
+              )}
+              {/* Scan line always shown while scanning */}
               <Animated.View
                 style={[
                   styles.scanLine,
@@ -190,12 +175,10 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
             </>
           )}
 
+          {/* Verified */}
           {status === 'verified' && (
             <Animated.View
-              style={[
-                styles.verifiedIcon,
-                { transform: [{ scale: fadeAnim }], opacity: fadeAnim },
-              ]}
+              style={[styles.verifiedIcon, { transform: [{ scale: fadeAnim }], opacity: fadeAnim }]}
             >
               <View style={[styles.verifiedCircle, { backgroundColor: Colors.verified + '20' }]}>
                 <Ionicons name="checkmark-circle" size={size * 0.4} color={Colors.verified} />
@@ -203,24 +186,30 @@ export default function BiometricScanner({ status, size = 160 }: BiometricScanne
             </Animated.View>
           )}
 
+          {/* Failed */}
           {status === 'failed' && (
-            <Ionicons name="close-circle" size={size * 0.4} color={Colors.error} />
+            <View style={styles.failedOverlay}>
+              <Ionicons name="close-circle" size={size * 0.4} color={Colors.error} />
+              <Text style={[styles.failedText, { fontSize: size * 0.08 }]}>Try Again</Text>
+            </View>
           )}
         </View>
       </View>
 
-      {/* Corner scan markers */}
+      {/* ── Corner scan markers ──────────────────────────────────────────── */}
       {status === 'scanning' && (
         <>
-          <View style={[styles.cornerMark, styles.topLeft, { borderColor: Colors.primary }]} />
-          <View style={[styles.cornerMark, styles.topRight, { borderColor: Colors.primary }]} />
+          <View style={[styles.cornerMark, styles.topLeft,    { borderColor: Colors.primary }]} />
+          <View style={[styles.cornerMark, styles.topRight,   { borderColor: Colors.primary }]} />
           <View style={[styles.cornerMark, styles.bottomLeft, { borderColor: Colors.primary }]} />
-          <View style={[styles.cornerMark, styles.bottomRight, { borderColor: Colors.primary }]} />
+          <View style={[styles.cornerMark, styles.bottomRight,{ borderColor: Colors.primary }]} />
         </>
       )}
     </View>
   );
-}
+});
+
+export default BiometricScanner;
 
 const styles = StyleSheet.create({
   container: {
@@ -238,17 +227,15 @@ const styles = StyleSheet.create({
   pulseBackground: {
     position: 'absolute',
   },
-  hexagonContainer: {
+  faceFrame: {
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  faceArea: {
-    width: '100%',
-    height: '100%',
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   faceOutline: {
     position: 'absolute',
@@ -276,7 +263,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    opacity: 0.8,
+    opacity: 0.85,
   },
   verifiedIcon: {
     alignItems: 'center',
@@ -286,39 +273,25 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     padding: 8,
   },
-  // Corner markers
+  failedOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.error + '15',
+    ...StyleSheet.absoluteFillObject,
+  },
+  failedText: {
+    color: Colors.error,
+    fontWeight: '700',
+  },
   cornerMark: {
     position: 'absolute',
     width: 16,
     height: 16,
     borderWidth: 2.5,
   },
-  topLeft: {
-    top: 8,
-    left: 8,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    borderTopLeftRadius: 4,
-  },
-  topRight: {
-    top: 8,
-    right: 8,
-    borderLeftWidth: 0,
-    borderBottomWidth: 0,
-    borderTopRightRadius: 4,
-  },
-  bottomLeft: {
-    bottom: 8,
-    left: 8,
-    borderRightWidth: 0,
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 4,
-  },
-  bottomRight: {
-    bottom: 8,
-    right: 8,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    borderBottomRightRadius: 4,
-  },
+  topLeft:     { top: 8,    left: 8,  borderRightWidth: 0,  borderBottomWidth: 0, borderTopLeftRadius: 4 },
+  topRight:    { top: 8,    right: 8, borderLeftWidth: 0,   borderBottomWidth: 0, borderTopRightRadius: 4 },
+  bottomLeft:  { bottom: 8, left: 8,  borderRightWidth: 0,  borderTopWidth: 0,    borderBottomLeftRadius: 4 },
+  bottomRight: { bottom: 8, right: 8, borderLeftWidth: 0,   borderTopWidth: 0,    borderBottomRightRadius: 4 },
 });
