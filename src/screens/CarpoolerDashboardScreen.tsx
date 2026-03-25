@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/appStore';
 import ProfileModal from '../components/ProfileModal';
 
@@ -24,6 +25,7 @@ const MOCK_REQUESTS = [
 ];
 
 export default function CarpoolerDashboardScreen({ navigation }: any) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
   const [isOnline, setIsOnline] = useState(false);
   const [acceptedRequests, setAcceptedRequests] = useState<string[]>([]);
@@ -36,15 +38,15 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
   const handleDecline = (id: string) => setAcceptedRequests(prev => prev.filter(r => r !== id));
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
       <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Driver Dashboard</Text>
+            <Text style={[styles.greeting, { color: C.textPrimary }]}>Driver Dashboard</Text>
             <Text style={styles.subGreeting}>Manage your rides & requests</Text>
           </View>
           <TouchableOpacity style={styles.avatarWrap} onPress={() => setProfileVisible(true)}>
@@ -57,7 +59,7 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
           <View style={styles.onlineLeft}>
             <View style={[styles.onlineDot, { backgroundColor: isOnline ? Colors.verified : Colors.textMuted }]} />
             <View>
-              <Text style={styles.onlineTitle}>{isOnline ? 'You are Online' : 'You are Offline'}</Text>
+              <Text style={[styles.onlineTitle, { color: C.textPrimary }]}>{isOnline ? 'You are Online' : 'You are Offline'}</Text>
               <Text style={styles.onlineDesc}>
                 {isOnline ? 'Passengers can see your route and book seats.' : 'Toggle to start accepting ride requests.'}
               </Text>
@@ -80,7 +82,7 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
           ].map((s, i) => (
             <View key={i} style={styles.statCard}>
               <Ionicons name={s.icon as any} size={20} color={s.color} />
-              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={[styles.statValue, { color: C.textPrimary }]}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
             </View>
           ))}
@@ -88,7 +90,7 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
 
         {/* Current route */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Route Today</Text>
+          <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Your Route Today</Text>
           <View style={styles.routeCard}>
             <View style={styles.routeRow}>
               <View style={styles.routeDots}>
@@ -99,11 +101,11 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
               <View style={styles.routeAddresses}>
                 <View>
                   <Text style={styles.routeLabel}>Pickup From</Text>
-                  <Text style={styles.routeAddress}>F-10 Markaz, Islamabad</Text>
+                  <Text style={[styles.routeAddress, { color: C.textPrimary }]}>F-10 Markaz, Islamabad</Text>
                 </View>
                 <View>
                   <Text style={styles.routeLabel}>Dropping At</Text>
-                  <Text style={styles.routeAddress}>PIMS Hospital, Islamabad</Text>
+                  <Text style={[styles.routeAddress, { color: C.textPrimary }]}>PIMS Hospital, Islamabad</Text>
                 </View>
               </View>
             </View>
@@ -155,7 +157,7 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
                       <Text style={styles.passengerAvatarText}>{req.passengerName[0]}</Text>
                     </View>
                     <View>
-                      <Text style={styles.passengerName}>{req.passengerName}</Text>
+                      <Text style={[styles.passengerName, { color: C.textPrimary }]}>{req.passengerName}</Text>
                       <Text style={styles.passengerCircle}>📍 {req.circle}</Text>
                     </View>
                   </View>
@@ -188,7 +190,7 @@ export default function CarpoolerDashboardScreen({ navigation }: any) {
                       style={styles.acceptBtn}
                       onPress={() => handleAccept(req.id)}
                     >
-                      <Ionicons name="checkmark" size={16} color={Colors.textPrimary} />
+                      <Ionicons name="checkmark" size={16} color="#fff" />
                       <Text style={styles.acceptBtnText}>Accept</Text>
                     </TouchableOpacity>
                   </View>
@@ -223,7 +225,7 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
   onlineCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -306,7 +308,7 @@ const styles = StyleSheet.create({
     flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 10, borderRadius: 10, backgroundColor: Colors.primary, gap: 6,
   },
-  acceptBtnText: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
   acceptedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.verifiedLight, borderRadius: 10, padding: 10 },
   acceptedText: { color: Colors.verified, fontSize: 13, fontWeight: '600' },

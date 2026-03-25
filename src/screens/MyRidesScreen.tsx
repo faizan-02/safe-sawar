@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/appStore';
 
 const MOCK_RIDES = [
@@ -61,6 +62,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function MyRidesScreen() {
+  const C = useTheme();
   const { state } = useAppStore();
   const isDriver = state.user?.role === 'carpooler';
   const [tab, setTab] = useState<'history' | 'upcoming'>('history');
@@ -72,23 +74,23 @@ export default function MyRidesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Rides</Text>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>My Rides</Text>
         <Text style={styles.headerSub}>{isDriver ? 'Your offered rides' : 'Your ride history'}</Text>
       </View>
 
       {/* Summary card */}
       <View style={styles.summaryCard}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{rides.length}</Text>
+          <Text style={[styles.summaryValue, { color: C.textPrimary }]}>{rides.length}</Text>
           <Text style={styles.summaryLabel}>Total Rides</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
+          <Text style={[styles.summaryValue, { color: C.textPrimary }]}>
             {rides.filter(r => r.status === 'completed').length}
           </Text>
           <Text style={styles.summaryLabel}>Completed</Text>
@@ -121,7 +123,7 @@ export default function MyRidesScreen() {
         {tab === 'upcoming' ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🗓️</Text>
-            <Text style={styles.emptyTitle}>No upcoming rides</Text>
+            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No upcoming rides</Text>
             <Text style={styles.emptyDesc}>
               {isDriver ? 'Offer a ride to see it here.' : 'Book a ride to see it here.'}
             </Text>
@@ -150,8 +152,8 @@ export default function MyRidesScreen() {
                   <View style={styles.dotTo} />
                 </View>
                 <View style={styles.routeText}>
-                  <Text style={styles.locationText}>{ride.from}</Text>
-                  <Text style={styles.locationText}>{ride.to}</Text>
+                  <Text style={[styles.locationText, { color: C.textPrimary }]}>{ride.from}</Text>
+                  <Text style={[styles.locationText, { color: C.textPrimary }]}>{ride.to}</Text>
                 </View>
               </View>
 
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center' },
   tabActive: { backgroundColor: Colors.cardBackground },
   tabText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
-  tabTextActive: { color: Colors.textPrimary },
+  tabTextActive: { color: '#fff' },
 
   list: { paddingHorizontal: 20, paddingBottom: 32, gap: 12 },
 

@@ -49,7 +49,7 @@ export default function CircleCard({ circle, onJoin, onView }: CircleCardProps) 
           </View>
           {circle.isJoined && (
             <View style={styles.joinedBadge}>
-              <Ionicons name="checkmark" size={10} color={Colors.textPrimary} />
+              <Ionicons name="checkmark" size={10} color="#fff" />
               <Text style={styles.joinedText}>Joined</Text>
             </View>
           )}
@@ -93,7 +93,7 @@ export default function CircleCard({ circle, onJoin, onView }: CircleCardProps) 
                 style={styles.joinButton}
                 onPress={() => onJoin(circle.id)}
               >
-                <Ionicons name="add" size={14} color={Colors.textPrimary} />
+                <Ionicons name="add" size={14} color="#fff" />
                 <Text style={styles.joinButtonText}>Join</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   joinedText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 9,
     fontWeight: '700',
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   joinButtonText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },

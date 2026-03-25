@@ -204,12 +204,12 @@ export default function SOSButton({ large = false, location = null }: SOSButtonP
             activeOpacity={0.8}
           >
             {sosState === 'sending' ? (
-              <ActivityIndicator color={Colors.textPrimary} size="small" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <Ionicons
                 name={sosState === 'active' ? 'alert-circle' : 'warning'}
                 size={large ? 28 : 22}
-                color={Colors.textPrimary}
+                color="#fff"
               />
             )}
             <Text style={[styles.sosLabel, { fontSize }]}>
@@ -256,7 +256,7 @@ export default function SOSButton({ large = false, location = null }: SOSButtonP
                 style={styles.confirmButton}
                 onPress={confirmSOS}
               >
-                <Ionicons name="warning" size={16} color={Colors.textPrimary} />
+                <Ionicons name="warning" size={16} color="#fff" />
                 <Text style={styles.confirmText}>Send SOS</Text>
               </TouchableOpacity>
             </View>
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
   },
   sosLabel: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   confirmText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 15,
     fontWeight: '700',
   },

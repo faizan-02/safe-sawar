@@ -15,16 +15,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAppStore, Contact } from '../store/appStore';
 
 function ContactRow({
   contact,
   onVouch,
   trustCredits,
+  C,
 }: {
   contact: Contact;
   onVouch: (contact: Contact) => void;
   trustCredits: number;
+  C: any;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const vouchAnim = useRef(new Animated.Value(0)).current;
@@ -44,13 +47,13 @@ function ContactRow({
         <Text style={styles.contactAvatar}>{contact.emoji}</Text>
         {contact.isVouched && (
           <View style={styles.vouchedBadge}>
-            <Ionicons name="checkmark" size={8} color={Colors.textPrimary} />
+            <Ionicons name="checkmark" size={8} color="#fff" />
           </View>
         )}
       </View>
 
       <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>{contact.name}</Text>
+        <Text style={[styles.contactName, { color: C.textPrimary }]}>{contact.name}</Text>
         <Text style={styles.contactPhone}>{contact.phone}</Text>
         {contact.circle && (
           <View style={styles.contactCircleBadge}>
@@ -78,7 +81,7 @@ function ContactRow({
           <Text style={styles.vouchButtonDisabledText}>No Credits</Text>
         ) : (
           <>
-            <Ionicons name="heart" size={14} color={Colors.textPrimary} />
+            <Ionicons name="heart" size={14} color="#fff" />
             <Text style={styles.vouchButtonText}>Vouch</Text>
           </>
         )}
@@ -88,7 +91,9 @@ function ContactRow({
 }
 
 export default function VouchScreen() {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
   const [searchQuery, setSearchQuery] = useState('');
   const [isVouching, setIsVouching] = useState(false);
   const [confirmContact, setConfirmContact] = useState<Contact | null>(null);
@@ -129,7 +134,7 @@ export default function VouchScreen() {
 
     Alert.alert(
       'Vouched! 🎉',
-      `You've vouched for ${confirmContact.name}. She can now join your circles and be visible to other trusted women in your network.\n\nTrust Credits remaining: ${trustCredits - 1}`,
+      `You've vouched for ${confirmContact.name}. They can now join your circles and be visible to other trusted ${isMale ? 'men' : 'women'} in your network.\n\nTrust Credits remaining: ${trustCredits - 1}`,
       [{ text: 'Great!' }]
     );
   }, [confirmContact, dispatch, trustCredits]);
@@ -144,13 +149,13 @@ export default function VouchScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Vouch for Friends</Text>
-          <Text style={styles.headerSubtitle}>Build trusted networks of women</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Vouch for Friends</Text>
+          <Text style={styles.headerSubtitle}>{isMale ? 'Build trusted networks of men' : 'Build trusted networks of women'}</Text>
         </View>
       </View>
 
@@ -160,10 +165,12 @@ export default function VouchScreen() {
           <Text style={[styles.creditsNumber, { color: creditColor }]}>{trustCredits}</Text>
         </View>
         <View style={styles.creditsInfo}>
-          <Text style={styles.creditsTitle}>Trust Credits Remaining</Text>
+          <Text style={[styles.creditsTitle, { color: C.textPrimary }]}>Trust Credits Remaining</Text>
           <Text style={styles.creditsSubtitle}>
             {trustCredits > 0
-              ? `You can vouch for ${trustCredits} more woman${trustCredits > 1 ? 'en' : ''}`
+              ? isMale
+                ? `You can vouch for ${trustCredits} more man${trustCredits > 1 ? 'men' : ''}`
+                : `You can vouch for ${trustCredits} more woman${trustCredits > 1 ? 'en' : ''}`
               : 'Complete rides to earn more credits'}
           </Text>
         </View>
@@ -172,7 +179,7 @@ export default function VouchScreen() {
             onPress={() =>
               Alert.alert(
                 'About Trust Credits',
-                'Trust Credits are used to vouch for other women in the network.\n\n• You start with 5 credits\n• Earn more by completing rides\n• Earn more when others vouch for you\n• Credits cannot be purchased'
+                `Trust Credits are used to vouch for other ${isMale ? 'men' : 'women'} in the network.\n\n• You start with 5 credits\n• Earn more by completing rides\n• Earn more when others vouch for you\n• Credits cannot be purchased`
               )
             }
           >
@@ -185,7 +192,7 @@ export default function VouchScreen() {
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{vouchedCount}</Text>
-          <Text style={styles.statLabel}>Women Vouched</Text>
+          <Text style={styles.statLabel}>{isMale ? 'Men Vouched' : 'Women Vouched'}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
@@ -235,6 +242,7 @@ export default function VouchScreen() {
             contact={item}
             onVouch={handleVouchPress}
             trustCredits={trustCredits}
+            C={C}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -242,7 +250,7 @@ export default function VouchScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>👥</Text>
-            <Text style={styles.emptyTitle}>No contacts found</Text>
+            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No contacts found</Text>
             <Text style={styles.emptyText}>Try a different search</Text>
           </View>
         }
@@ -266,7 +274,7 @@ export default function VouchScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalEmoji}>{confirmContact?.emoji}</Text>
-            <Text style={styles.modalTitle}>Vouch for {confirmContact?.name}?</Text>
+            <Text style={[styles.modalTitle, { color: C.textPrimary }]}>Vouch for {confirmContact?.name}?</Text>
             <Text style={styles.modalMessage}>
               By vouching, you confirm that {confirmContact?.name} is a trustworthy woman you know personally.
               This will cost 1 Trust Credit.
@@ -287,7 +295,7 @@ export default function VouchScreen() {
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalConfirmButton} onPress={confirmVouch}>
-                <Ionicons name="heart" size={16} color={Colors.textPrimary} />
+                <Ionicons name="heart" size={16} color="#fff" />
                 <Text style={styles.modalConfirmText}>Vouch Now</Text>
               </TouchableOpacity>
             </View>
@@ -506,7 +514,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   vouchButtonText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -639,7 +647,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   modalConfirmText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 14,
     fontWeight: '800',
   },

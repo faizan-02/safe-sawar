@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useCameraPermissions, CameraView } from 'expo-camera';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import BiometricScanner from '../components/BiometricScanner';
 import {
   verifyWithNADRA,
@@ -36,7 +37,9 @@ type Props = {
 type VerificationStep = 'cnic' | 'biometric' | 'otp' | 'complete';
 
 export default function BiometricVerificationScreen({ navigation }: Props) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
 
   // Pre-fill CNIC from registration (avoids asking twice)
   const prefillCnic = state.user?.cnic ? formatCNIC(state.user.cnic) : '';
@@ -110,6 +113,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
           cnic,
           phone: '',
           role: 'passenger',
+          gender: state.selectedGender,
           isVerified: false,
           biometricVerified: false,
           trustCredits: 5,
@@ -153,15 +157,22 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
           Alert.alert('Face Verification Failed', faceResult.error);
           setTimeout(() => setScanStatus('idle'), 2500);
           return;
-        } else if (faceResult.gender === 'Male') {
+        } else if (isMale && faceResult.gender === 'Female') {
           setScanStatus('failed');
-          const msg = 'Safe-Sawar is exclusively for women. A male face was detected.';
+          const msg = 'This section is for male users only. A female face was detected. Please use the Female section.';
+          setStatusMessage(msg);
+          Alert.alert('Access Denied', msg);
+          setTimeout(() => setScanStatus('idle'), 3000);
+          return;
+        } else if (!isMale && faceResult.gender === 'Male') {
+          setScanStatus('failed');
+          const msg = 'Safe-Sawar\'s female section is exclusively for women. A male face was detected.';
           setStatusMessage(msg);
           Alert.alert('Access Denied', msg);
           setTimeout(() => setScanStatus('idle'), 3000);
           return;
         }
-        // faceResult.gender === 'Female' ✓ — continue
+        // Gender matched ✓ — continue
       }
 
       // ── Stage C: Device biometric (Face ID / fingerprint) ───────────────
@@ -225,6 +236,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
         phone: phone.trim(),
         role: state.user?.role ?? 'passenger',
         name: state.user?.name ?? '',
+        gender: state.selectedGender,
       })).catch(() => {});
       transitionToStep('complete');
       setStatusMessage("Registration complete! Please sign in to continue.");
@@ -256,10 +268,10 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -284,12 +296,12 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                 ]}
               >
                 {i < stepIndex ? (
-                  <Ionicons name="checkmark" size={12} color={Colors.textPrimary} />
+                  <Ionicons name="checkmark" size={12} color="#fff" />
                 ) : (
                   <Ionicons
                     name={stepIcons[i] as any}
                     size={12}
-                    color={i === stepIndex ? Colors.textPrimary : Colors.textMuted}
+                    color={i === stepIndex ? '#fff' : Colors.textMuted}
                   />
                 )}
               </View>
@@ -309,12 +321,12 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
         </View>
 
         {/* Status banner */}
-        <View style={styles.statusBanner}>
-          <View style={styles.nadraLogo}>
+        <View style={[styles.statusBanner, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
+          <View style={[styles.nadraLogo, { backgroundColor: C.primaryGlow }]}>
             <Text style={styles.nadraLogoText}>🏛️</Text>
           </View>
           <Text style={styles.statusText}>{statusMessage}</Text>
-          {isLoading && <ActivityIndicator size="small" color={Colors.primary} />}
+          {isLoading && <ActivityIndicator size="small" color={C.primary} />}
         </View>
 
         {/* Step content */}
@@ -322,7 +334,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
 
           {/* ── STEP 1: CNIC ──────────────────────────────────────────────── */}
           {currentStep === 'cnic' && (
-            <View style={styles.stepPanel}>
+            <View style={[styles.stepPanel, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
               <Text style={styles.stepTitle}>Enter Your CNIC</Text>
               <Text style={styles.stepDescription}>
                 Your 13-digit National Identity Card number is required to join Safe-Sawar.
@@ -364,10 +376,10 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
               </View>
 
               <TouchableOpacity
-                style={styles.primaryButton}
+                style={[styles.primaryButton, { backgroundColor: C.primary, shadowColor: C.primary }]}
                 onPress={handleCNICVerify}
               >
-                <Ionicons name="arrow-forward-circle" size={18} color={Colors.textPrimary} />
+                <Ionicons name="arrow-forward-circle" size={18} color="#fff" />
                 <Text style={styles.primaryButtonText}>Continue to Face Scan</Text>
               </TouchableOpacity>
             </View>
@@ -375,14 +387,14 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
 
           {/* ── STEP 2: Face scan ─────────────────────────────────────────── */}
           {currentStep === 'biometric' && (
-            <View style={styles.stepPanel}>
+            <View style={[styles.stepPanel, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
               <Text style={styles.stepTitle}>Face Scan</Text>
               {verifiedName ? (
                 <Text style={styles.verifiedNameText}>Welcome, {verifiedName}</Text>
               ) : null}
               <Text style={styles.stepDescription}>
                 {cameraGranted
-                  ? 'Look directly at the camera. Tap "Start Face Scan" when ready.'
+                  ? `Look directly at the camera. Only ${isMale ? 'male' : 'female'} faces are accepted. Tap "Start Face Scan" when ready.`
                   : 'Camera permission is required for face verification.'}
               </Text>
 
@@ -418,7 +430,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                       style={[styles.primaryButton, { marginBottom: 10 }]}
                       onPress={requestCameraPermission}
                     >
-                      <Ionicons name="camera" size={18} color={Colors.textPrimary} />
+                      <Ionicons name="camera" size={18} color="#fff" />
                       <Text style={styles.primaryButtonText}>Grant Camera Access</Text>
                     </TouchableOpacity>
                   )}
@@ -430,12 +442,12 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                   >
                     {scanStatus === 'scanning' ? (
                       <>
-                        <ActivityIndicator color={Colors.textPrimary} size="small" />
+                        <ActivityIndicator color="#fff" size="small" />
                         <Text style={styles.primaryButtonText}>Scanning…</Text>
                       </>
                     ) : (
                       <>
-                        <Ionicons name="scan" size={18} color={Colors.textPrimary} />
+                        <Ionicons name="scan" size={18} color="#fff" />
                         <Text style={styles.primaryButtonText}>Start Face Scan</Text>
                       </>
                     )}
@@ -447,7 +459,7 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
 
           {/* ── STEP 3: Phone OTP ─────────────────────────────────────────── */}
           {currentStep === 'otp' && (
-            <View style={styles.stepPanel}>
+            <View style={[styles.stepPanel, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
               <Text style={styles.stepTitle}>Phone Verification</Text>
               <Text style={styles.stepDescription}>
                 Enter your Pakistani mobile number to receive a verification code via SMS.
@@ -473,10 +485,10 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <ActivityIndicator color={Colors.textPrimary} />
+                    <ActivityIndicator color="#fff" />
                   ) : (
                     <>
-                      <Ionicons name="send" size={16} color={Colors.textPrimary} />
+                      <Ionicons name="send" size={16} color="#fff" />
                       <Text style={styles.primaryButtonText}>Send OTP</Text>
                     </>
                   )}
@@ -507,10 +519,10 @@ export default function BiometricVerificationScreen({ navigation }: Props) {
                     disabled={isLoading}
                   >
                     {isLoading ? (
-                      <ActivityIndicator color={Colors.textPrimary} />
+                      <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Ionicons name="checkmark-circle" size={18} color={Colors.textPrimary} />
+                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
                         <Text style={styles.primaryButtonText}>Verify OTP</Text>
                       </>
                     )}
@@ -730,7 +742,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   primaryButtonText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,

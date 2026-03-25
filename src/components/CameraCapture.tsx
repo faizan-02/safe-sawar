@@ -64,7 +64,7 @@ export default function CameraCapture({
         {/* Edit overlay when photo exists */}
         {uri && (
           <View style={styles.editBadge}>
-            <Ionicons name="pencil" size={12} color={Colors.textPrimary} />
+            <Ionicons name="pencil" size={12} color="#fff" />
           </View>
         )}
       </TouchableOpacity>
@@ -76,7 +76,7 @@ export default function CameraCapture({
           {/* Top bar */}
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setShowCamera(false)}>
-              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.cameraLabel}>{label}</Text>
             <View style={{ width: 44 }} />
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cameraLabel: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    borderColor: Colors.textPrimary,
+    borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -185,6 +185,6 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: Colors.textPrimary,
+    backgroundColor: '#fff',
   },
 });

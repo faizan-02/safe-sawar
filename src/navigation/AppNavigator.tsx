@@ -6,11 +6,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/appStore';
 
 // Screens
 import SplashScreen                  from '../screens/SplashScreen';
 import OnboardingScreen              from '../screens/OnboardingScreen';
+import GenderSelectionScreen         from '../screens/GenderSelectionScreen';
 import AuthScreen                    from '../screens/AuthScreen';
 import LoginScreen                   from '../screens/LoginScreen';
 import RoleSelectionScreen           from '../screens/RoleSelectionScreen';
@@ -30,6 +32,7 @@ import EarningsScreen                from '../screens/EarningsScreen';
 export type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
+  GenderSelection: undefined;
   Auth: undefined;
   Login: undefined;
   RoleSelection: undefined;
@@ -67,14 +70,15 @@ function TabIcon({
   focused: boolean;
   tabConfig: Record<string, { icon: string; activeIcon: string; label: string }>;
 }) {
+  const C = useTheme();
   const cfg = tabConfig[routeName];
   if (!cfg) return null;
   return (
-    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+    <View style={[styles.tabIconWrap, focused && { backgroundColor: C.primaryGlow, borderRadius: 17 }]}>
       <Ionicons
         name={(focused ? cfg.activeIcon : cfg.icon) as any}
         size={focused ? 22 : 21}
-        color={focused ? Colors.primary : Colors.textMuted}
+        color={focused ? C.primary : C.textMuted}
       />
     </View>
   );
@@ -82,14 +86,15 @@ function TabIcon({
 
 // ─── Passenger tabs ───────────────────────────────────────────────────────────
 function PassengerTabs() {
+  const C = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: [styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarStyle: [styles.tabBar, { backgroundColor: C.cardBackground, borderTopColor: C.border, shadowColor: C.primary, paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarItemStyle: styles.tabItem,
         tabBarIcon: ({ focused }) => (
           <TabIcon routeName={route.name} focused={focused} tabConfig={PASSENGER_TABS} />
@@ -111,14 +116,15 @@ function PassengerTabs() {
 
 // ─── Carpooler tabs ───────────────────────────────────────────────────────────
 function CarpoolerTabs() {
+  const C = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: [styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarStyle: [styles.tabBar, { backgroundColor: C.cardBackground, borderTopColor: C.border, shadowColor: C.primary, paddingBottom: Math.max(insets.bottom, 8), height: 56 + Math.max(insets.bottom, 8) }],
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarItemStyle: styles.tabItem,
         tabBarIcon: ({ focused }) => (
           <TabIcon routeName={route.name} focused={focused} tabConfig={CARPOOLER_TABS} />
@@ -147,19 +153,21 @@ function MainTabs() {
 
 // ─── Root navigator ───────────────────────────────────────────────────────────
 export default function AppNavigator() {
+  const C = useTheme();
   return (
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: C.background },
           animation: 'fade_from_bottom',
         }}
       >
-        <Stack.Screen name="Splash"     component={SplashScreen} />
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="Auth"       component={AuthScreen} />
+        <Stack.Screen name="Splash"           component={SplashScreen} />
+        <Stack.Screen name="Onboarding"       component={OnboardingScreen} />
+        <Stack.Screen name="GenderSelection"  component={GenderSelectionScreen} options={{ animation: 'fade' }} />
+        <Stack.Screen name="Auth"             component={AuthScreen} />
         <Stack.Screen name="Login"      component={LoginScreen}  options={{ animation: 'slide_from_right' }} />
 
         <Stack.Screen name="RoleSelection"         component={RoleSelectionScreen}        options={{ animation: 'slide_from_right' }} />
@@ -178,12 +186,9 @@ export default function AppNavigator() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.cardBackground,
-    borderTopColor: Colors.border,
     borderTopWidth: 1,
     paddingTop: 8,
     elevation: 24,
-    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.18,
     shadowRadius: 16,

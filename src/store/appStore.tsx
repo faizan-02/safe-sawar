@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AUTH_STORAGE_KEY = 'ss_auth_state';
+const THEME_STORAGE_KEY = 'ss_theme_mode';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -21,6 +22,7 @@ export interface User {
   cnic: string;
   phone: string;
   role: 'passenger' | 'carpooler';
+  gender: 'male' | 'female';
   isVerified: boolean;
   biometricVerified: boolean;
   trustCredits: number;
@@ -95,6 +97,8 @@ export interface AppState {
   sosActive: boolean;
   meshNetworkDevices: number;
   isOnline: boolean;
+  selectedGender: 'male' | 'female';
+  themeMode: 'system' | 'light' | 'dark';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,6 +108,7 @@ type AppAction =
   | { type: 'SET_USER';            payload: User }
   | { type: 'UPDATE_USER';         payload: Partial<User> }
   | { type: 'SET_AUTHENTICATED';   payload: boolean }
+  | { type: 'SET_GENDER';          payload: 'male' | 'female' }
   | { type: 'HYDRATE';             payload: { user: User | null; isAuthenticated: boolean } }
   | { type: 'LOGOUT' }
   | { type: 'SET_VERIFIED';        payload: boolean }
@@ -117,7 +122,8 @@ type AppAction =
   | { type: 'SET_MESH_DEVICES';    payload: number }
   | { type: 'SET_ONLINE';          payload: boolean }
   | { type: 'VOUCH_FOR_CONTACT';   payload: string }
-  | { type: 'DECREMENT_TRUST_CREDITS' };
+  | { type: 'DECREMENT_TRUST_CREDITS' }
+  | { type: 'SET_THEME_MODE';      payload: 'system' | 'light' | 'dark' };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Initial state
@@ -183,6 +189,8 @@ const initialState: AppState = {
   sosActive: false,
   meshNetworkDevices: 3,
   isOnline: true,
+  selectedGender: 'female',
+  themeMode: 'system',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -202,11 +210,20 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_AUTHENTICATED':
       return { ...state, isAuthenticated: action.payload };
 
+    case 'SET_GENDER':
+      return { ...state, selectedGender: action.payload };
+
     case 'HYDRATE':
-      return { ...state, user: action.payload.user, isAuthenticated: action.payload.isAuthenticated, isHydrated: true };
+      return {
+        ...state,
+        user: action.payload.user,
+        isAuthenticated: action.payload.isAuthenticated,
+        isHydrated: true,
+        selectedGender: action.payload.user?.gender ?? state.selectedGender,
+      };
 
     case 'LOGOUT':
-      return { ...initialState, isHydrated: true, circles: state.circles };
+      return { ...initialState, isHydrated: true, circles: state.circles, selectedGender: state.selectedGender };
 
     case 'SET_VERIFIED':
       return { ...state, isVerified: action.payload };
@@ -258,6 +275,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
           : state.user,
       };
 
+    case 'SET_THEME_MODE':
+      return { ...state, themeMode: action.payload };
+
     default:
       return state;
   }
@@ -276,20 +296,24 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Load persisted session on startup
+  // Load persisted session + theme on startup
   useEffect(() => {
-    AsyncStorage.getItem(AUTH_STORAGE_KEY)
-      .then(raw => {
-        if (raw) {
-          const { user, isAuthenticated } = JSON.parse(raw);
-          dispatch({ type: 'HYDRATE', payload: { user: user ?? null, isAuthenticated: !!isAuthenticated } });
-        } else {
-          dispatch({ type: 'HYDRATE', payload: { user: null, isAuthenticated: false } });
-        }
-      })
-      .catch(() => {
+    Promise.all([
+      AsyncStorage.getItem(AUTH_STORAGE_KEY),
+      AsyncStorage.getItem(THEME_STORAGE_KEY),
+    ]).then(([authRaw, themeRaw]) => {
+      if (authRaw) {
+        const { user, isAuthenticated } = JSON.parse(authRaw);
+        dispatch({ type: 'HYDRATE', payload: { user: user ?? null, isAuthenticated: !!isAuthenticated } });
+      } else {
         dispatch({ type: 'HYDRATE', payload: { user: null, isAuthenticated: false } });
-      });
+      }
+      if (themeRaw) {
+        dispatch({ type: 'SET_THEME_MODE', payload: themeRaw as 'system' | 'light' | 'dark' });
+      }
+    }).catch(() => {
+      dispatch({ type: 'HYDRATE', payload: { user: null, isAuthenticated: false } });
+    });
   }, []);
 
   // Persist session whenever user or auth state changes
@@ -300,6 +324,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isAuthenticated: state.isAuthenticated,
     })).catch(() => {});
   }, [state.user, state.isAuthenticated, state.isHydrated]);
+
+  // Persist theme mode
+  useEffect(() => {
+    AsyncStorage.setItem(THEME_STORAGE_KEY, state.themeMode).catch(() => {});
+  }, [state.themeMode]);
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
 }

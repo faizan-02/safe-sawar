@@ -6,6 +6,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { formatCNIC } from '../services/biometricService';
 import { useAppStore } from '../store/appStore';
 import CameraCapture from '../components/CameraCapture';
@@ -30,6 +31,8 @@ const CAR_COLORS = [
 
 export default function CarpoolerRegistrationScreen({ navigation }: Props) {
   const { state, dispatch } = useAppStore();
+  const C = useTheme();
+  const isMale = state.selectedGender === 'male';
 
   // Personal
   const [name, setName]               = useState('');
@@ -112,6 +115,7 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
         cnic,
         phone,
         role: 'carpooler',
+        gender: state.selectedGender,
         isVerified: false,
         biometricVerified: false,
         trustCredits: 5,
@@ -140,10 +144,10 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -151,12 +155,15 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: C.cardBackground, borderColor: C.border }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color={C.textPrimary} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Carpooler Registration</Text>
-            <Text style={styles.headerSub}>Step {stepIndex + 1} of {STEPS.length}</Text>
+            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Carpooler Registration</Text>
+            <Text style={[styles.headerSub, { color: C.textMuted }]}>Step {stepIndex + 1} of {STEPS.length}</Text>
           </View>
         </View>
 
@@ -166,36 +173,40 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
             <View key={i} style={styles.stepItem}>
               <View style={[
                 styles.stepCircle,
-                i < stepIndex   ? styles.stepDone :
-                i === stepIndex ? styles.stepActive :
-                                  styles.stepPending,
+                i < stepIndex   ? [styles.stepDone] :
+                i === stepIndex ? [styles.stepActive, { backgroundColor: C.primary }] :
+                                  [styles.stepPending, { borderColor: C.border }],
               ]}>
                 {i < stepIndex
                   ? <Ionicons name="checkmark" size={11} color="#fff" />
                   : <Ionicons name={STEP_ICONS[i] as any} size={11}
-                      color={i === stepIndex ? '#fff' : Colors.textMuted} />
+                      color={i === stepIndex ? '#fff' : C.textMuted} />
                 }
               </View>
-              <Text style={[styles.stepLabel,
-                i === stepIndex ? styles.stepLabelActive : styles.stepLabelMuted]}>
+              <Text style={[
+                styles.stepLabel,
+                i === stepIndex ? [styles.stepLabelActive, { color: C.primary }] : [styles.stepLabelMuted, { color: C.textMuted }],
+              ]}>
                 {label}
               </Text>
               {i < STEP_LABELS.length - 1 && (
-                <View style={[styles.stepLine, i < stepIndex && styles.stepLineDone]} />
+                <View style={[styles.stepLine, { backgroundColor: C.border }, i < stepIndex && styles.stepLineDone]} />
               )}
             </View>
           ))}
         </View>
 
-        <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.card, { opacity: fadeAnim, backgroundColor: C.cardBackground, borderColor: C.border }]}>
 
           {/* ── Step 1: Personal ───────────────────────────────────────────── */}
           {step === 'personal' && (
             <>
-              <Text style={styles.cardTitle}>Personal Information</Text>
-              <Text style={styles.cardDesc}>Your details are verified against NADRA before activation.</Text>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Personal Information</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
+                Your details are verified against NADRA before activation.
+              </Text>
 
-              <Text style={styles.fieldLabel}>Profile Photo</Text>
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Profile Photo</Text>
               <View style={styles.photoRow}>
                 <CameraCapture
                   label="Take Selfie"
@@ -204,34 +215,57 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
                   uri={profilePhoto}
                   onCapture={setProfilePhoto}
                 />
-                <Text style={styles.photoHint}>Passengers will see this when you offer a ride.</Text>
+                <Text style={[styles.photoHint, { color: C.textSecondary }]}>
+                  {isMale
+                    ? 'Passengers will see this when you offer a ride.'
+                    : 'Passengers will see this when you offer a ride.'}
+                </Text>
               </View>
 
-              <Text style={styles.fieldLabel}>Full Name *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="person-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="e.g. Ayesha Fatima"
-                  placeholderTextColor={Colors.textMuted} value={name}
-                  onChangeText={setName} autoCapitalize="words" />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Full Name *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="person-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder={isMale ? 'e.g. Ahmed Ali' : 'e.g. Ayesha Fatima'}
+                  placeholderTextColor={C.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
               </View>
 
-              <Text style={styles.fieldLabel}>CNIC Number *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="card-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="XXXXX-XXXXXXX-X"
-                  placeholderTextColor={Colors.textMuted} value={cnic}
-                  onChangeText={v => setCnic(formatCNIC(v))} keyboardType="numeric" maxLength={15} />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>CNIC Number *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="card-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder="XXXXX-XXXXXXX-X"
+                  placeholderTextColor={C.textMuted}
+                  value={cnic}
+                  onChangeText={v => setCnic(formatCNIC(v))}
+                  keyboardType="numeric"
+                  maxLength={15}
+                />
               </View>
 
-              <Text style={styles.fieldLabel}>Phone Number *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="phone-portrait-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="+92 300 1234567"
-                  placeholderTextColor={Colors.textMuted} value={phone}
-                  onChangeText={setPhone} keyboardType="phone-pad" />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Phone Number *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="phone-portrait-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder="+92 300 1234567"
+                  placeholderTextColor={C.textMuted}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
               </View>
 
-              <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
+              <TouchableOpacity
+                style={[styles.nextBtn, { backgroundColor: C.primary, shadowColor: C.primary }]}
+                onPress={handleNext}
+              >
                 <Text style={styles.nextBtnText}>Continue</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
@@ -241,8 +275,10 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
           {/* ── Step 2: Circle ────────────────────────────────────────────── */}
           {step === 'circle' && (
             <>
-              <Text style={styles.cardTitle}>Your Circle</Text>
-              <Text style={styles.cardDesc}>You can only offer rides within your verified circle.</Text>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Your Circle</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
+                You can only offer rides within your verified circle.
+              </Text>
 
               <ScrollView
                 horizontal showsHorizontalScrollIndicator={false}
@@ -251,14 +287,22 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
                 {circles.map(c => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.circleChip, selectedCircle === c.id && styles.circleChipActive]}
+                    style={[
+                      styles.circleChip,
+                      { backgroundColor: C.surfaceBackground, borderColor: C.border },
+                      selectedCircle === c.id && { borderColor: C.primary, backgroundColor: C.primaryGlow },
+                    ]}
                     onPress={() => setSelectedCircle(c.id)}
                   >
                     <Text style={styles.circleEmoji}>{c.emoji}</Text>
-                    <Text style={[styles.circleName, selectedCircle === c.id && styles.circleNameActive]}>
+                    <Text style={[
+                      styles.circleName,
+                      { color: C.textSecondary },
+                      selectedCircle === c.id && { color: C.primary },
+                    ]}>
                       {c.name}
                     </Text>
-                    <Text style={styles.circleCategory}>{c.category}</Text>
+                    <Text style={[styles.circleCategory, { color: C.textMuted }]}>{c.category}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -272,17 +316,25 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
                 </View>
               )}
 
-              <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Circle Verification Doc</Text>
-              <Text style={styles.docHint}>Student card or employee ID. Optional — submit later.</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 20, color: C.textMuted }]}>Circle Verification Doc</Text>
+              <Text style={[styles.docHint, { color: C.textMuted }]}>
+                Student card or employee ID. Optional — submit later.
+              </Text>
               <CameraCapture label="Scan Student / Employee ID" icon="id-card-outline"
                 facing="back" uri={circleDoc} onCapture={setCircleDoc} />
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.backStepBtn} onPress={() => transition('personal')}>
-                  <Ionicons name="arrow-back" size={16} color={Colors.primary} />
-                  <Text style={styles.backStepText}>Back</Text>
+                <TouchableOpacity
+                  style={[styles.backStepBtn, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}
+                  onPress={() => transition('personal')}
+                >
+                  <Ionicons name="arrow-back" size={16} color={C.primary} />
+                  <Text style={[styles.backStepText, { color: C.primary }]}>Back</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.nextBtn, { flex: 1 }]} onPress={handleNext}>
+                <TouchableOpacity
+                  style={[styles.nextBtn, { flex: 1, backgroundColor: C.primary, shadowColor: C.primary }]}
+                  onPress={handleNext}
+                >
                   <Text style={styles.nextBtnText}>Continue</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -293,34 +345,51 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
           {/* ── Step 3: Vehicle ───────────────────────────────────────────── */}
           {step === 'vehicle' && (
             <>
-              <Text style={styles.cardTitle}>Vehicle Details</Text>
-              <Text style={styles.cardDesc}>Passengers use these details to identify your car.</Text>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Vehicle Details</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
+                Passengers use these details to identify your car.
+              </Text>
 
-              <Text style={styles.fieldLabel}>Vehicle Make *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="car-sport-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="e.g. Honda, Toyota, Suzuki"
-                  placeholderTextColor={Colors.textMuted} value={make}
-                  onChangeText={setMake} autoCapitalize="words" />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Vehicle Make *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="car-sport-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder="e.g. Honda, Toyota, Suzuki"
+                  placeholderTextColor={C.textMuted}
+                  value={make}
+                  onChangeText={setMake}
+                  autoCapitalize="words"
+                />
               </View>
 
-              <Text style={styles.fieldLabel}>Vehicle Model *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="car-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="e.g. Civic, Corolla, Alto"
-                  placeholderTextColor={Colors.textMuted} value={model}
-                  onChangeText={setModel} autoCapitalize="words" />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Vehicle Model *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="car-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder="e.g. Civic, Corolla, Alto"
+                  placeholderTextColor={C.textMuted}
+                  value={model}
+                  onChangeText={setModel}
+                  autoCapitalize="words"
+                />
               </View>
 
-              <Text style={styles.fieldLabel}>Registration Plate *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="document-text-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="e.g. LHR-1234"
-                  placeholderTextColor={Colors.textMuted} value={plate}
-                  onChangeText={setPlate} autoCapitalize="characters" />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Registration Plate *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="document-text-outline" size={18} color={C.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder="e.g. LHR-1234"
+                  placeholderTextColor={C.textMuted}
+                  value={plate}
+                  onChangeText={setPlate}
+                  autoCapitalize="characters"
+                />
               </View>
 
-              <Text style={styles.fieldLabel}>Vehicle Color</Text>
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Vehicle Color</Text>
               <ScrollView
                 horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.colorScroll}
@@ -328,72 +397,94 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
                 {CAR_COLORS.map(c => (
                   <TouchableOpacity
                     key={c.name}
-                    style={[styles.colorChip, carColor === c.name && styles.colorChipActive]}
+                    style={[
+                      styles.colorChip,
+                      { backgroundColor: C.surfaceBackground, borderColor: C.border },
+                      carColor === c.name && { borderColor: C.primary },
+                    ]}
                     onPress={() => setCarColor(c.name)}
                   >
                     <View style={[styles.colorDot, { backgroundColor: c.hex,
-                      borderWidth: c.name === 'White' ? 1 : 0, borderColor: Colors.border }]} />
-                    <Text style={[styles.colorName, carColor === c.name && styles.colorNameActive]}>
+                      borderWidth: c.name === 'White' ? 1 : 0, borderColor: C.border }]} />
+                    <Text style={[styles.colorName, { color: C.textSecondary }, carColor === c.name && { color: C.primary, fontWeight: '700' }]}>
                       {c.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <Text style={styles.fieldLabel}>Available Seats *</Text>
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Available Seats *</Text>
               <View style={styles.seatsRow}>
                 {[1, 2, 3].map(n => (
                   <TouchableOpacity
                     key={n}
-                    style={[styles.seatBtn, seats === n && styles.seatBtnActive]}
+                    style={[
+                      styles.seatBtn,
+                      { backgroundColor: C.surfaceBackground, borderColor: C.border },
+                      seats === n && { backgroundColor: C.primary, borderColor: C.primary },
+                    ]}
                     onPress={() => setSeats(n)}
                   >
-                    <Ionicons
-                      name="person"
-                      size={18}
-                      color={seats === n ? Colors.textPrimary : Colors.textMuted}
-                    />
-                    <Text style={[styles.seatLabel, seats === n && styles.seatLabelActive]}>{n}</Text>
+                    <Ionicons name="person" size={18} color={seats === n ? '#fff' : C.textMuted} />
+                    <Text style={[styles.seatLabel, { color: C.textMuted }, seats === n && { color: '#fff' }]}>{n}</Text>
                   </TouchableOpacity>
                 ))}
-                <Text style={styles.seatsHint}>available passenger seats</Text>
+                <Text style={[styles.seatsHint, { color: C.textMuted }]}>available passenger seats</Text>
               </View>
 
-              <Text style={[styles.fieldLabel, { marginTop: 4 }]}>Vehicle Registration Doc</Text>
-              <Text style={styles.docHint}>Photo of your vehicle registration certificate. Optional.</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 4, color: C.textMuted }]}>Vehicle Registration Doc</Text>
+              <Text style={[styles.docHint, { color: C.textMuted }]}>
+                Photo of your vehicle registration certificate. Optional.
+              </Text>
               <CameraCapture label="Scan Registration Doc" icon="document-outline"
                 facing="back" uri={vehicleDoc} onCapture={setVehicleDoc} />
 
               {/* Regular Route */}
-              <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Regular Route *</Text>
-              <Text style={styles.docHint}>Your typical daily commute. Passengers will be matched along this route.</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 20, color: C.textMuted }]}>Regular Route *</Text>
+              <Text style={[styles.docHint, { color: C.textMuted }]}>
+                Your typical daily commute. Passengers will be matched along this route.
+              </Text>
 
-              <View style={styles.routeCard}>
+              <View style={[styles.routeCard, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}>
                 <View style={styles.routeRow}>
                   <View style={[styles.routeDot, { backgroundColor: Colors.verified }]} />
-                  <View style={styles.inputWrap2}>
-                    <TextInput style={styles.input} placeholder="From (e.g. Gulberg, Lahore)"
-                      placeholderTextColor={Colors.textMuted} value={routeFrom}
-                      onChangeText={setRouteFrom} />
+                  <View style={[styles.inputWrap2, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                    <TextInput
+                      style={[styles.input, { color: C.textPrimary }]}
+                      placeholder="From (e.g. Gulberg, Lahore)"
+                      placeholderTextColor={C.textMuted}
+                      value={routeFrom}
+                      onChangeText={setRouteFrom}
+                    />
                   </View>
                 </View>
-                <View style={styles.routeConnector} />
+                <View style={[styles.routeConnector, { backgroundColor: C.border }]} />
                 <View style={styles.routeRow}>
-                  <View style={[styles.routeDot, { backgroundColor: Colors.primary }]} />
-                  <View style={styles.inputWrap2}>
-                    <TextInput style={styles.input} placeholder="To (e.g. UET Main Campus)"
-                      placeholderTextColor={Colors.textMuted} value={routeTo}
-                      onChangeText={setRouteTo} />
+                  <View style={[styles.routeDot, { backgroundColor: C.primary }]} />
+                  <View style={[styles.inputWrap2, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                    <TextInput
+                      style={[styles.input, { color: C.textPrimary }]}
+                      placeholder="To (e.g. UET Main Campus)"
+                      placeholderTextColor={C.textMuted}
+                      value={routeTo}
+                      onChangeText={setRouteTo}
+                    />
                   </View>
                 </View>
               </View>
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.backStepBtn} onPress={() => transition('circle')}>
-                  <Ionicons name="arrow-back" size={16} color={Colors.primary} />
-                  <Text style={styles.backStepText}>Back</Text>
+                <TouchableOpacity
+                  style={[styles.backStepBtn, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}
+                  onPress={() => transition('circle')}
+                >
+                  <Ionicons name="arrow-back" size={16} color={C.primary} />
+                  <Text style={[styles.backStepText, { color: C.primary }]}>Back</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.nextBtn, { flex: 1 }]} onPress={handleNext}>
+                <TouchableOpacity
+                  style={[styles.nextBtn, { flex: 1, backgroundColor: C.primary, shadowColor: C.primary }]}
+                  onPress={handleNext}
+                >
                   <Text style={styles.nextBtnText}>Continue</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -404,30 +495,32 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
           {/* ── Step 4: Consent ───────────────────────────────────────────── */}
           {step === 'consent' && (
             <>
-              <Text style={styles.cardTitle}>Biometric Consent</Text>
-              <Text style={styles.cardDesc}>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Biometric Consent</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
                 As a carpooler, you are responsible for the safety of your passengers. Please read carefully.
               </Text>
 
               {/* Summary card */}
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Your Registration Summary</Text>
-                <SummaryRow icon="person" label="Name"    value={name} />
-                <SummaryRow icon="car"   label="Vehicle" value={`${make} ${model} · ${plate}`} />
-                <SummaryRow icon="people"label="Circle"  value={circles.find(c => c.id === selectedCircle)?.name || '-'} />
-                <SummaryRow icon="navigate" label="Route" value={`${routeFrom} → ${routeTo}`} />
-                <SummaryRow icon="people-circle" label="Seats" value={`${seats} available`} />
+              <View style={[styles.summaryCard, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}>
+                <Text style={[styles.summaryTitle, { color: C.textMuted }]}>Your Registration Summary</Text>
+                <SummaryRow icon="person"        label="Name"    value={name}                                           C={C} />
+                <SummaryRow icon="car"           label="Vehicle" value={`${make} ${model} · ${plate}`}                 C={C} />
+                <SummaryRow icon="people"        label="Circle"  value={circles.find(c => c.id === selectedCircle)?.name || '-'} C={C} />
+                <SummaryRow icon="navigate"      label="Route"   value={`${routeFrom} → ${routeTo}`}                   C={C} />
+                <SummaryRow icon="people-circle" label="Seats"   value={`${seats} available`}                          C={C} />
               </View>
 
-              <View style={styles.consentBox}>
-                <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
-                <Text style={styles.consentBoxText}>
+              <View style={[styles.consentBox, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}>
+                <Ionicons name="document-text-outline" size={20} color={C.primary} />
+                <Text style={[styles.consentBoxText, { color: C.textSecondary }]}>
                   By joining as a Carpooler, you consent to:{'\n\n'}
                   • CNIC verification against the NADRA database{'\n'}
                   • Biometric (face / fingerprint) device verification{'\n'}
                   • Sharing your name, vehicle details & circle with matched passengers{'\n'}
                   • Background safety checks within Safe-Sawar{'\n'}
-                  • Women-only policy — your vehicle will only be matched with verified women
+                  {isMale
+                    ? '• Your vehicle will only be matched with verified male passengers'
+                    : '• Women-only policy — your vehicle will only be matched with verified women'}
                 </Text>
               </View>
 
@@ -436,21 +529,28 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
                 onPress={() => setBiometricConsent(v => !v)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, biometricConsent && styles.checkboxChecked]}>
+                <View style={[
+                  styles.checkbox,
+                  { borderColor: C.border, backgroundColor: C.inputBackground },
+                  biometricConsent && { backgroundColor: C.primary, borderColor: C.primary },
+                ]}>
                   {biometricConsent && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={styles.checkLabel}>
+                <Text style={[styles.checkLabel, { color: C.textSecondary }]}>
                   I agree to biometric verification and the Safe-Sawar carpooler terms & conditions.
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.backStepBtn} onPress={() => transition('vehicle')}>
-                  <Ionicons name="arrow-back" size={16} color={Colors.primary} />
-                  <Text style={styles.backStepText}>Back</Text>
+                <TouchableOpacity
+                  style={[styles.backStepBtn, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}
+                  onPress={() => transition('vehicle')}
+                >
+                  <Ionicons name="arrow-back" size={16} color={C.primary} />
+                  <Text style={[styles.backStepText, { color: C.primary }]}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.nextBtn, { flex: 1 }, !biometricConsent && styles.btnDisabled]}
+                  style={[styles.nextBtn, { flex: 1, backgroundColor: C.primary, shadowColor: C.primary }, !biometricConsent && styles.btnDisabled]}
                   onPress={handleSubmit}
                   disabled={!biometricConsent}
                 >
@@ -466,13 +566,13 @@ export default function CarpoolerRegistrationScreen({ navigation }: Props) {
   );
 }
 
-function SummaryRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function SummaryRow({ icon, label, value, C }: { icon: string; label: string; value: string; C: any }) {
   if (!value || value.trim() === ' · ' || value.trim() === '→') return null;
   return (
     <View style={summaryStyles.row}>
-      <Ionicons name={icon as any} size={14} color={Colors.primary} />
-      <Text style={summaryStyles.label}>{label}:</Text>
-      <Text style={summaryStyles.value} numberOfLines={1}>{value}</Text>
+      <Ionicons name={icon as any} size={14} color={C.primary} />
+      <Text style={[summaryStyles.label, { color: C.textMuted }]}>{label}:</Text>
+      <Text style={[summaryStyles.value, { color: C.textPrimary }]} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -602,7 +702,7 @@ const styles = StyleSheet.create({
   },
   seatBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   seatLabel: { color: Colors.textMuted, fontSize: 15, fontWeight: '700' },
-  seatLabelActive: { color: Colors.textPrimary },
+  seatLabelActive: { color: '#fff' },
   seatsHint: { color: Colors.textMuted, fontSize: 12, flex: 1 },
 
   routeCard: {

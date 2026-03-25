@@ -14,17 +14,18 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import SOSButton from '../components/SOSButton';
 import MeshNetworkStatus from '../components/MeshNetworkStatus';
 import { useAppStore } from '../store/appStore';
 import { getRouteCoordinates } from '../services/rideMatchingService';
 
-const MOCK_RIDE = {
+const MOCK_RIDE_FEMALE = {
   driverName: 'Ayesha K.',
   driverAvatar: '👩‍⚕️',
   driverPhone: '+92 300 1234567',
   car: 'Toyota Aqua',
-  carColor: 'Pink',
+  carColor: 'White',
   carPlate: 'ISB-2024',
   circle: 'PIMS Islamabad',
   vouchCount: 12,
@@ -32,6 +33,21 @@ const MOCK_RIDE = {
   eta: '4 min',
   pickup: { lat: 33.7294, lng: 73.0931, address: 'F-10 Markaz' },
   dropoff: { lat: 33.6938, lng: 73.0652, address: 'PIMS Hospital' },
+};
+
+const MOCK_RIDE_MALE = {
+  driverName: 'Ahmed K.',
+  driverAvatar: '👨‍⚕️',
+  driverPhone: '+92 300 1234567',
+  car: 'Honda Civic',
+  carColor: 'Black',
+  carPlate: 'LHR-4521',
+  circle: 'NUST Islamabad',
+  vouchCount: 9,
+  rating: 4.8,
+  eta: '5 min',
+  pickup: { lat: 33.7294, lng: 73.0931, address: 'F-10 Markaz' },
+  dropoff: { lat: 33.6938, lng: 73.0652, address: 'NUST H-12' },
 };
 
 // Simulated driver location moving along route
@@ -56,7 +72,10 @@ function useDriverLocation(
 }
 
 export default function RideInProgressScreen({ navigation }: any) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
+  const MOCK_RIDE = isMale ? MOCK_RIDE_MALE : MOCK_RIDE_FEMALE;
   const [rideStatus, setRideStatus] = useState<'waiting' | 'enroute' | 'arrived' | 'completed'>('waiting');
   const [elapsedTime, setElapsedTime] = useState(0);
   const bottomSheetAnim = useRef(new Animated.Value(0)).current;
@@ -163,7 +182,7 @@ export default function RideInProgressScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor="transparent" translucent />
 
       {/* Full-screen map */}
       <MapView
@@ -212,7 +231,7 @@ export default function RideInProgressScreen({ navigation }: any) {
             <View style={styles.driverMarker}>
               <Text style={styles.driverMarkerEmoji}>{MOCK_RIDE.driverAvatar}</Text>
               <View style={styles.driverMarkerBadge}>
-                <Ionicons name="car" size={8} color={Colors.textPrimary} />
+                <Ionicons name="car" size={8} color="#fff" />
               </View>
             </View>
           </Marker>
@@ -243,7 +262,7 @@ export default function RideInProgressScreen({ navigation }: any) {
             <View style={styles.driverAvatar}>
               <Text style={styles.driverAvatarEmoji}>{MOCK_RIDE.driverAvatar}</Text>
               <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark" size={8} color={Colors.textPrimary} />
+                <Ionicons name="checkmark" size={8} color="#fff" />
               </View>
             </View>
 
@@ -268,7 +287,7 @@ export default function RideInProgressScreen({ navigation }: any) {
             </View>
 
             <TouchableOpacity style={styles.callButton} onPress={handleCallDriver}>
-              <Ionicons name="call" size={18} color={Colors.textPrimary} />
+              <Ionicons name="call" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
 
@@ -293,7 +312,7 @@ export default function RideInProgressScreen({ navigation }: any) {
           {/* Action buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.shareButton} onPress={handleShareRide}>
-              <Ionicons name="share-social" size={16} color={Colors.textPrimary} />
+              <Ionicons name="share-social" size={16} color="#fff" />
               <Text style={styles.shareButtonText}>Share Ride Details</Text>
             </TouchableOpacity>
 
@@ -514,7 +533,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderStrong,
   },
   shareButtonText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 13,
     fontWeight: '700',
   },

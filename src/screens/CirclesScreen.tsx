@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import CircleCard from '../components/CircleCard';
 import { useAppStore } from '../store/appStore';
+import { useTheme } from '../theme/ThemeContext';
 import { requestJoinCircle } from '../services/circlesService';
 
 const CATEGORIES = [
@@ -16,7 +17,9 @@ const CATEGORIES = [
 ];
 
 export default function CirclesScreen() {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
   const [searchQuery, setSearchQuery]           = useState('');
   const [refreshing, setRefreshing]             = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -36,7 +39,7 @@ export default function CirclesScreen() {
     if (!circle) return;
     Alert.alert(
       `Join ${circle.name}?`,
-      `You'll join ${circle.institution} with ${circle.memberCount} verified women.`,
+      `You'll join ${circle.institution} with ${circle.memberCount} verified ${isMale ? 'men' : 'women'}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -80,13 +83,13 @@ export default function CirclesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>Your Community</Text>
-          <Text style={styles.headerTitle}>Institution Circles</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Institution Circles</Text>
         </View>
         <TouchableOpacity style={styles.notifBtn}>
           <Ionicons name="notifications-outline" size={21} color={Colors.textPrimary} />
@@ -95,10 +98,10 @@ export default function CirclesScreen() {
       </View>
 
       {/* ── Stats ──────────────────────────────────────────────────────── */}
-      <View style={styles.statsBar}>
+      <View style={[styles.statsBar, { backgroundColor: C.cardBackground }]}>
         {[
           { value: state.circles.length, label: 'Circles',     icon: 'layers-outline',  color: Colors.primary },
-          { value: totalMembers.toLocaleString(), label: 'Women', icon: 'people-outline',  color: '#9C27B0' },
+          { value: totalMembers.toLocaleString(), label: isMale ? 'Men' : 'Women', icon: 'people-outline',  color: '#9C27B0' },
           { value: totalRides,           label: 'Rides Today',  icon: 'car-outline',      color: Colors.verified },
         ].map((s, i) => (
           <React.Fragment key={i}>
@@ -118,7 +121,7 @@ export default function CirclesScreen() {
       <View style={styles.searchWrap}>
         <Ionicons name="search-outline" size={17} color={Colors.textMuted} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: C.textPrimary }]}
           placeholder="Search circles or institutions..."
           placeholderTextColor={Colors.textMuted}
           value={searchQuery}
@@ -148,7 +151,7 @@ export default function CirclesScreen() {
               <Ionicons
                 name={cat.icon as any}
                 size={13}
-                color={active ? Colors.textPrimary : Colors.textMuted}
+                color={active ? '#fff' : Colors.textMuted}
               />
               <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
                 {cat.label}
@@ -179,7 +182,7 @@ export default function CirclesScreen() {
         {filteredCircles.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🔍</Text>
-            <Text style={styles.emptyTitle}>No circles found</Text>
+            <Text style={[styles.emptyTitle, { color: C.textPrimary }]}>No circles found</Text>
             <Text style={styles.emptyText}>Try a different search or category</Text>
           </View>
         ) : (
@@ -259,7 +262,7 @@ const styles = StyleSheet.create({
   },
   categoryPillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   categoryText: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
-  categoryTextActive: { color: Colors.textPrimary },
+  categoryTextActive: { color: '#fff' },
 
   // Member banner
   memberBanner: {

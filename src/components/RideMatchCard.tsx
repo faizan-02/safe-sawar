@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { RideMatch } from '../services/rideMatchingService';
+import { useAppStore } from '../store/appStore';
 
 interface RideMatchCardProps {
   match: RideMatch;
@@ -34,6 +35,8 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function RideMatchCard({ match, onBook }: RideMatchCardProps) {
+  const { state } = useAppStore();
+  const isMale = state.selectedGender === 'male';
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn  = () => Animated.spring(scaleAnim, { toValue: 0.975, useNativeDriver: true, speed: 30 }).start();
@@ -103,7 +106,7 @@ export default function RideMatchCard({ match, onBook }: RideMatchCardProps) {
         {/* ── Vouches ──────────────────────────────────────────────────── */}
         <View style={styles.vouchRow}>
           <Ionicons name="people-outline" size={12} color={Colors.textMuted} />
-          <Text style={styles.vouchText}>{match.vouchCount} women vouched for her</Text>
+          <Text style={styles.vouchText}>{match.vouchCount} {isMale ? 'men' : 'women'} vouched for {isMale ? 'him' : 'her'}</Text>
         </View>
 
         {/* ── Divider ──────────────────────────────────────────────────── */}
@@ -120,7 +123,7 @@ export default function RideMatchCard({ match, onBook }: RideMatchCardProps) {
 
           <TouchableOpacity style={styles.bookBtn} onPress={() => onBook(match)}>
             <Text style={styles.bookBtnText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={13} color={Colors.textPrimary} />
+            <Ionicons name="arrow-forward" size={13} color="#fff" />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: Colors.primary + '60',
   },
-  avatarInitial: { color: Colors.textPrimary, fontSize: 20, fontWeight: '800' },
+  avatarInitial: { color: '#fff', fontSize: 20, fontWeight: '800' },
   verifiedDot: {
     position: 'absolute', bottom: 0, right: 0,
     width: 16, height: 16, borderRadius: 8,
@@ -224,5 +227,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4, shadowRadius: 8,
   },
-  bookBtnText: { color: Colors.textPrimary, fontSize: 13, fontWeight: '800' },
+  bookBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 });

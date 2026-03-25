@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { useAppStore } from '../store/appStore';
+import { useTheme } from '../theme/ThemeContext';
 
 const { height } = Dimensions.get('window');
 
@@ -26,7 +27,9 @@ interface Props {
 }
 
 export default function ProfileModal({ visible, onClose, navigation }: Props) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
   const slideAnim = useRef(new Animated.Value(height)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
@@ -68,7 +71,7 @@ export default function ProfileModal({ visible, onClose, navigation }: Props) {
     {
       icon: 'car',
       label: 'Schedule a Ride',
-      sub: 'Find verified women going your way',
+      sub: isMale ? 'Find verified men going your way' : 'Find verified women going your way',
       onPress: () => navigate('ScheduleRide'),
     },
     {
@@ -145,7 +148,7 @@ export default function ProfileModal({ visible, onClose, navigation }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Backdrop */}
       <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
@@ -153,7 +156,7 @@ export default function ProfileModal({ visible, onClose, navigation }: Props) {
       </Animated.View>
 
       {/* Sheet */}
-      <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View style={[styles.sheet, { backgroundColor: C.cardBackground, borderColor: C.border, transform: [{ translateY: slideAnim }] }]}>
         {/* Handle */}
         <View style={styles.handle} />
 
@@ -163,7 +166,7 @@ export default function ProfileModal({ visible, onClose, navigation }: Props) {
             <Text style={styles.avatarLargeText}>{initials}</Text>
             {user?.isVerified && (
               <View style={styles.verifiedBadge}>
-                <Ionicons name="shield-checkmark" size={12} color={Colors.textPrimary} />
+                <Ionicons name="shield-checkmark" size={12} color="#fff" />
               </View>
             )}
           </View>
@@ -227,6 +230,41 @@ export default function ProfileModal({ visible, onClose, navigation }: Props) {
           {/* Divider */}
           <View style={styles.divider} />
 
+          {/* ── Appearance ──────────────────────────────────────────────── */}
+          <View style={styles.appearanceSection}>
+            <View style={styles.appearanceHeader}>
+              <View style={[styles.menuIcon, { backgroundColor: C.primary + '18' }]}>
+                <Ionicons name="contrast-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.menuText}>
+                <Text style={[styles.menuLabel, { color: C.textPrimary }]}>Appearance</Text>
+                <Text style={styles.menuSub}>Choose your preferred theme</Text>
+              </View>
+            </View>
+            <View style={styles.themeToggleRow}>
+              {(['system', 'light', 'dark'] as const).map((mode) => {
+                const isActive = state.themeMode === mode;
+                const icon = mode === 'system' ? 'phone-portrait-outline' : mode === 'light' ? 'sunny-outline' : 'moon-outline';
+                const label = mode === 'system' ? 'Auto' : mode === 'light' ? 'Light' : 'Dark';
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.themeBtn,
+                      isActive && { backgroundColor: C.primary, borderColor: C.primary },
+                    ]}
+                    onPress={() => dispatch({ type: 'SET_THEME_MODE', payload: mode })}
+                  >
+                    <Ionicons name={icon as any} size={16} color={isActive ? '#fff' : C.textMuted} />
+                    <Text style={[styles.themeBtnText, isActive && { color: '#fff' }]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
           {/* Logout */}
           <TouchableOpacity style={styles.logoutItem} onPress={handleLogout}>
             <View style={[styles.menuIcon, { backgroundColor: '#e5393520' }]}>
@@ -271,7 +309,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.borderStrong,
     position: 'relative',
   },
-  avatarLargeText: { color: Colors.textPrimary, fontSize: 22, fontWeight: '900' },
+  avatarLargeText: { color: '#fff', fontSize: 22, fontWeight: '900' },
   verifiedBadge: {
     position: 'absolute', bottom: -2, right: -2,
     width: 20, height: 20, borderRadius: 10,
@@ -332,4 +370,16 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
   logoutItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 },
   logoutText: { fontSize: 14, fontWeight: '700', color: '#e53935' },
+
+  // Appearance
+  appearanceSection: { paddingVertical: 10 },
+  appearanceHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
+  themeToggleRow: { flexDirection: 'row', gap: 8 },
+  themeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.border,
+    backgroundColor: Colors.surfaceBackground,
+  },
+  themeBtnText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted },
 });

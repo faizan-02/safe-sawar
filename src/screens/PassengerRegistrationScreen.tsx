@@ -6,6 +6,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { formatCNIC } from '../services/biometricService';
 import { useAppStore } from '../store/appStore';
 import CameraCapture from '../components/CameraCapture';
@@ -20,6 +21,8 @@ const STEP_ICONS      = ['person-outline', 'people-outline', 'shield-checkmark-o
 
 export default function PassengerRegistrationScreen({ navigation }: Props) {
   const { state, dispatch } = useAppStore();
+  const C = useTheme();
+  const isMale = state.selectedGender === 'male';
 
   const [step, setStep]               = useState<Step>('personal');
   const [name, setName]               = useState('');
@@ -72,7 +75,6 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
     if (!biometricConsent) {
       Alert.alert('Consent Required', 'Please provide biometric consent to continue.'); return;
     }
-    // Save to store
     dispatch({
       type: 'SET_USER',
       payload: {
@@ -81,6 +83,7 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
         cnic,
         phone,
         role: 'passenger',
+        gender: state.selectedGender,
         isVerified: false,
         biometricVerified: false,
         trustCredits: 5,
@@ -98,10 +101,10 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -110,12 +113,15 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: C.cardBackground, borderColor: C.border }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color={C.textPrimary} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Passenger Registration</Text>
-            <Text style={styles.headerSub}>Step {stepIndex + 1} of {STEPS.length}</Text>
+            <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Passenger Registration</Text>
+            <Text style={[styles.headerSub, { color: C.textMuted }]}>Step {stepIndex + 1} of {STEPS.length}</Text>
           </View>
         </View>
 
@@ -125,38 +131,42 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
             <View key={i} style={styles.stepItem}>
               <View style={[
                 styles.stepCircle,
-                i < stepIndex  ? styles.stepDone :
-                i === stepIndex ? styles.stepActive :
-                                  styles.stepPending,
+                i < stepIndex  ? [styles.stepDone] :
+                i === stepIndex ? [styles.stepActive, { backgroundColor: C.primary }] :
+                                  [styles.stepPending, { borderColor: C.border }],
               ]}>
                 {i < stepIndex
                   ? <Ionicons name="checkmark" size={12} color="#fff" />
                   : <Ionicons name={STEP_ICONS[i] as any} size={12}
-                      color={i === stepIndex ? '#fff' : Colors.textMuted} />
+                      color={i === stepIndex ? '#fff' : C.textMuted} />
                 }
               </View>
-              <Text style={[styles.stepLabel,
-                i === stepIndex ? styles.stepLabelActive : styles.stepLabelMuted]}>
+              <Text style={[
+                styles.stepLabel,
+                i === stepIndex ? [styles.stepLabelActive, { color: C.primary }] : [styles.stepLabelMuted, { color: C.textMuted }],
+              ]}>
                 {label}
               </Text>
               {i < STEP_LABELS.length - 1 && (
-                <View style={[styles.stepLine, i < stepIndex && styles.stepLineDone]} />
+                <View style={[styles.stepLine, { backgroundColor: C.border }, i < stepIndex && styles.stepLineDone]} />
               )}
             </View>
           ))}
         </View>
 
         {/* Content */}
-        <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.card, { opacity: fadeAnim, backgroundColor: C.cardBackground, borderColor: C.border }]}>
 
           {/* ── Step 1: Personal info ─────────────────────────────────────── */}
           {step === 'personal' && (
             <>
-              <Text style={styles.cardTitle}>Personal Information</Text>
-              <Text style={styles.cardDesc}>We need your details to create your verified profile.</Text>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Personal Information</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
+                We need your details to create your verified profile.
+              </Text>
 
               {/* Profile photo */}
-              <Text style={styles.fieldLabel}>Profile Photo</Text>
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Profile Photo</Text>
               <View style={styles.photoRow}>
                 <CameraCapture
                   label="Take Selfie"
@@ -165,31 +175,33 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
                   uri={profilePhoto}
                   onCapture={setProfilePhoto}
                 />
-                <Text style={styles.photoHint}>
-                  Take a clear selfie for your profile. This helps other women recognise you.
+                <Text style={[styles.photoHint, { color: C.textSecondary }]}>
+                  {isMale
+                    ? 'Take a clear selfie for your profile. This helps other men recognise you.'
+                    : 'Take a clear selfie for your profile. This helps other women recognise you.'}
                 </Text>
               </View>
 
-              <Text style={styles.fieldLabel}>Full Name *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="person-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Full Name *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="person-outline" size={18} color={C.primary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Ayesha Fatima"
-                  placeholderTextColor={Colors.textMuted}
+                  style={[styles.input, { color: C.textPrimary }]}
+                  placeholder={isMale ? 'e.g. Ahmed Ali' : 'e.g. Ayesha Fatima'}
+                  placeholderTextColor={C.textMuted}
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
                 />
               </View>
 
-              <Text style={styles.fieldLabel}>CNIC Number *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="card-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>CNIC Number *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="card-outline" size={18} color={C.primary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: C.textPrimary }]}
                   placeholder="XXXXX-XXXXXXX-X"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={C.textMuted}
                   value={cnic}
                   onChangeText={v => setCnic(formatCNIC(v))}
                   keyboardType="numeric"
@@ -197,20 +209,23 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
                 />
               </View>
 
-              <Text style={styles.fieldLabel}>Phone Number *</Text>
-              <View style={styles.inputWrap}>
-                <Ionicons name="phone-portrait-outline" size={18} color={Colors.primary} style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: C.textMuted }]}>Phone Number *</Text>
+              <View style={[styles.inputWrap, { backgroundColor: C.inputBackground, borderColor: C.border }]}>
+                <Ionicons name="phone-portrait-outline" size={18} color={C.primary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: C.textPrimary }]}
                   placeholder="+92 300 1234567"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={C.textMuted}
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
                 />
               </View>
 
-              <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
+              <TouchableOpacity
+                style={[styles.nextBtn, { backgroundColor: C.primary, shadowColor: C.primary }]}
+                onPress={handleNext}
+              >
                 <Text style={styles.nextBtnText}>Continue</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </TouchableOpacity>
@@ -220,8 +235,8 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
           {/* ── Step 2: Circle selection ──────────────────────────────────── */}
           {step === 'circle' && (
             <>
-              <Text style={styles.cardTitle}>Select Your Circle</Text>
-              <Text style={styles.cardDesc}>
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Select Your Circle</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
                 Circles are trusted groups from your institution. Pick the one you belong to.
               </Text>
 
@@ -233,14 +248,22 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
                 {circles.map(c => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.circleChip, selectedCircle === c.id && styles.circleChipActive]}
+                    style={[
+                      styles.circleChip,
+                      { backgroundColor: C.surfaceBackground, borderColor: C.border },
+                      selectedCircle === c.id && { borderColor: C.primary, backgroundColor: C.primaryGlow },
+                    ]}
                     onPress={() => setSelectedCircle(c.id)}
                   >
                     <Text style={styles.circleEmoji}>{c.emoji}</Text>
-                    <Text style={[styles.circleName, selectedCircle === c.id && styles.circleNameActive]}>
+                    <Text style={[
+                      styles.circleName,
+                      { color: C.textSecondary },
+                      selectedCircle === c.id && { color: C.primary },
+                    ]}>
                       {c.name}
                     </Text>
-                    <Text style={styles.circleCategory}>{c.category}</Text>
+                    <Text style={[styles.circleCategory, { color: C.textMuted }]}>{c.category}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -255,10 +278,10 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
               )}
 
               {/* Circle verification document */}
-              <Text style={[styles.fieldLabel, { marginTop: 20 }]}>
+              <Text style={[styles.fieldLabel, { marginTop: 20, color: C.textMuted }]}>
                 Circle Verification Document
               </Text>
-              <Text style={styles.docHint}>
+              <Text style={[styles.docHint, { color: C.textMuted }]}>
                 Upload your student card or employee ID to get verified faster.
                 (Optional — you can submit it later.)
               </Text>
@@ -271,11 +294,17 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
               />
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.backStepBtn} onPress={() => transition('personal')}>
-                  <Ionicons name="arrow-back" size={16} color={Colors.primary} />
-                  <Text style={styles.backStepText}>Back</Text>
+                <TouchableOpacity
+                  style={[styles.backStepBtn, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}
+                  onPress={() => transition('personal')}
+                >
+                  <Ionicons name="arrow-back" size={16} color={C.primary} />
+                  <Text style={[styles.backStepText, { color: C.primary }]}>Back</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.nextBtn, { flex: 1 }]} onPress={handleNext}>
+                <TouchableOpacity
+                  style={[styles.nextBtn, { flex: 1, backgroundColor: C.primary, shadowColor: C.primary }]}
+                  onPress={handleNext}
+                >
                   <Text style={styles.nextBtnText}>Continue</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -286,15 +315,16 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
           {/* ── Step 3: Consent ───────────────────────────────────────────── */}
           {step === 'consent' && (
             <>
-              <Text style={styles.cardTitle}>Biometric Consent</Text>
-              <Text style={styles.cardDesc}>
-                Safe-Sawar uses NADRA biometric verification to keep the platform safe for all women.
-                Please read and consent to the following.
+              <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Biometric Consent</Text>
+              <Text style={[styles.cardDesc, { color: C.textSecondary }]}>
+                {isMale
+                  ? 'Safe-Sawar uses NADRA biometric verification to keep the platform safe for all members. Please read and consent to the following.'
+                  : 'Safe-Sawar uses NADRA biometric verification to keep the platform safe for all women. Please read and consent to the following.'}
               </Text>
 
-              <View style={styles.consentBox}>
-                <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
-                <Text style={styles.consentBoxText}>
+              <View style={[styles.consentBox, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}>
+                <Ionicons name="document-text-outline" size={20} color={C.primary} />
+                <Text style={[styles.consentBoxText, { color: C.textSecondary }]}>
                   By joining Safe-Sawar, you consent to:{'\n\n'}
                   • Verification of your CNIC against the NADRA database{'\n'}
                   • Biometric (face / fingerprint) verification on your device{'\n'}
@@ -308,21 +338,28 @@ export default function PassengerRegistrationScreen({ navigation }: Props) {
                 onPress={() => setBiometricConsent(v => !v)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, biometricConsent && styles.checkboxChecked]}>
+                <View style={[
+                  styles.checkbox,
+                  { borderColor: C.border, backgroundColor: C.inputBackground },
+                  biometricConsent && { backgroundColor: C.primary, borderColor: C.primary },
+                ]}>
                   {biometricConsent && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={styles.checkLabel}>
+                <Text style={[styles.checkLabel, { color: C.textSecondary }]}>
                   I agree to biometric verification and the Safe-Sawar privacy policy.
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.backStepBtn} onPress={() => transition('circle')}>
-                  <Ionicons name="arrow-back" size={16} color={Colors.primary} />
-                  <Text style={styles.backStepText}>Back</Text>
+                <TouchableOpacity
+                  style={[styles.backStepBtn, { backgroundColor: C.surfaceBackground, borderColor: C.border }]}
+                  onPress={() => transition('circle')}
+                >
+                  <Ionicons name="arrow-back" size={16} color={C.primary} />
+                  <Text style={[styles.backStepText, { color: C.primary }]}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.nextBtn, { flex: 1 }, !biometricConsent && styles.btnDisabled]}
+                  style={[styles.nextBtn, { flex: 1, backgroundColor: C.primary, shadowColor: C.primary }, !biometricConsent && styles.btnDisabled]}
                   onPress={handleSubmit}
                   disabled={!biometricConsent}
                 >

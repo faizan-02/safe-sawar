@@ -13,6 +13,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,6 +52,7 @@ const slides = [
 ];
 
 export default function OnboardingScreen({ navigation }: Props) {
+  const C = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -76,7 +78,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   const markSeenAndGo = () => {
     AsyncStorage.setItem('has_seen_onboarding', 'true').catch(() => {});
-    navigation.replace('Auth');
+    navigation.replace('GenderSelection');
   };
 
   const handleNext = () => {
@@ -95,7 +97,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Skip button */}
       <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
@@ -176,7 +178,7 @@ export default function OnboardingScreen({ navigation }: Props) {
           <Ionicons
             name={currentSlide === slides.length - 1 ? 'arrow-forward' : 'arrow-forward'}
             size={20}
-            color={Colors.textPrimary}
+            color="#fff"
           />
         </TouchableOpacity>
       </View>
@@ -338,7 +340,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   nextButtonText: {
-    color: Colors.textPrimary,
+    color: '#fff',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.5,

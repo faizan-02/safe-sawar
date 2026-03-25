@@ -8,25 +8,33 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { sendOTP, verifyOTP } from '../services/biometricService';
 import { useAppStore } from '../store/appStore';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 type LoginStep = 'phone' | 'otp';
+type RegisteredCreds = { role: 'passenger' | 'carpooler'; name: string; gender?: 'male' | 'female' };
 
 export default function LoginScreen({ navigation }: Props) {
+  const C = useTheme();
   const { dispatch } = useAppStore();
   const [step, setStep] = useState<LoginStep>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [registeredCreds, setRegisteredCreds] = useState<{
-    role: 'passenger' | 'carpooler'; name: string;
-  } | null>(null);
+  const [registeredCreds, setRegisteredCreds] = useState<RegisteredCreds | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('registered_credentials').then(raw => {
-      if (raw) setRegisteredCreds(JSON.parse(raw));
+      if (raw) {
+        const creds = JSON.parse(raw);
+        setRegisteredCreds(creds);
+        // Restore gender so theme applies correctly on login
+        if (creds.gender) {
+          dispatch({ type: 'SET_GENDER', payload: creds.gender });
+        }
+      }
     }).catch(() => {});
   }, []);
 
@@ -63,6 +71,7 @@ export default function LoginScreen({ navigation }: Props) {
           cnic: '',
           phone: phone.trim(),
           role: registeredCreds?.role ?? 'passenger',
+          gender: registeredCreds?.gender ?? 'female',
           isVerified: true,
           biometricVerified: false,
           trustCredits: 5,
@@ -78,14 +87,14 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: C.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Back button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+      <TouchableOpacity style={[styles.backBtn, { backgroundColor: C.cardBackground, borderColor: C.border }]} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={22} color={C.textPrimary} />
       </TouchableOpacity>
 
       <ScrollView
@@ -95,14 +104,14 @@ export default function LoginScreen({ navigation }: Props) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoBox}>
+          <View style={[styles.logoBox, { backgroundColor: C.cardBackground, borderColor: C.borderStrong, shadowColor: C.primary }]}>
             <Text style={styles.logoEmoji}>🛡️</Text>
           </View>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to your Safe-Sawar account</Text>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
           {step === 'phone' ? (
             <>
               <Text style={styles.cardTitle}>Enter Your Phone Number</Text>
@@ -156,15 +165,15 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
 
               <TouchableOpacity
-                style={[styles.btn, isLoading && styles.btnDisabled]}
+                style={[styles.btn, { backgroundColor: C.primary, shadowColor: C.primary }, isLoading && styles.btnDisabled]}
                 onPress={handleSendOTP}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={Colors.textPrimary} />
+                  <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Ionicons name="send" size={18} color={Colors.textPrimary} />
+                    <Ionicons name="send" size={18} color="#fff" />
                     <Text style={styles.btnText}>Send OTP</Text>
                   </>
                 )}
@@ -193,15 +202,15 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
 
               <TouchableOpacity
-                style={[styles.btn, isLoading && styles.btnDisabled]}
+                style={[styles.btn, { backgroundColor: C.primary, shadowColor: C.primary }, isLoading && styles.btnDisabled]}
                 onPress={handleVerifyOTP}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={Colors.textPrimary} />
+                  <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle" size={18} color={Colors.textPrimary} />
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
                     <Text style={styles.btnText}>Verify & Sign In</Text>
                   </>
                 )}
@@ -281,7 +290,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 10,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
   otpSentBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

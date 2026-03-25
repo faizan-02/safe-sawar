@@ -40,7 +40,7 @@ export default function SplashScreen({ navigation }: Props) {
     }
 
     AsyncStorage.getItem('has_seen_onboarding').then(seen => {
-      navigation.replace(seen ? 'Auth' : 'Onboarding');
+      navigation.replace(seen ? 'GenderSelection' : 'Onboarding');
     }).catch(() => navigation.replace('Onboarding'));
   }, [minTimeDone, state.isHydrated]); // isAuthenticated read at execution time via state ref
 
@@ -112,7 +112,7 @@ export default function SplashScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
       {/* Background glows */}
       <View style={styles.glow1} />
@@ -148,7 +148,7 @@ export default function SplashScreen({ navigation }: Props) {
       <Animated.View style={[styles.taglineWrap, { opacity: taglineOp }]}>
         <Text style={styles.tagline}>Travel Together. Stay Safe.</Text>
         <View style={styles.taglineLine} />
-        <Text style={styles.subTagline}>Women's Hyper-Local Transit • Pakistan</Text>
+        <Text style={styles.subTagline}>Hyper-Local Transit • Pakistan</Text>
       </Animated.View>
 
       {/* Progress bar */}
@@ -214,9 +214,6 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 40, fontWeight: '900',
     color: Colors.textPrimary, letterSpacing: 2,
-    textShadowColor: Colors.primary,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 24,
     marginBottom: 8,
   },
   urduText: {

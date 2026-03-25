@@ -6,12 +6,15 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useAppStore } from '../store/appStore';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
 };
 
-const ROLES = [
+// accent for Passenger is set dynamically below using C.primary
+const ROLES_BASE = [
   {
     icon: 'person' as const,
     title: 'Passenger',
@@ -21,7 +24,7 @@ const ROLES = [
       { icon: 'shield-checkmark', text: 'Stay within your trusted Circle' },
       { icon: 'navigate',       text: 'Share live location with family' },
     ],
-    accent: Colors.primary,
+    accentKey: 'primary' as const,
     screen: 'PassengerRegistration',
     emoji: '🚗',
   },
@@ -30,26 +33,31 @@ const ROLES = [
     title: 'Carpooler',
     subtitle: 'I want to offer rides & earn',
     highlights: [
-      { icon: 'people',    text: 'Offer rides to verified women only' },
+      { icon: 'people',    text: 'Offer verified rides & earn money' },
       { icon: 'wallet',    text: 'Earn while you commute' },
       { icon: 'map',       text: 'Full vehicle & route control' },
     ],
-    accent: '#7C3AED',
+    accentKey: 'carpooler' as const,
     screen: 'CarpoolerRegistration',
     emoji: '🛞',
   },
 ];
 
+const CARPOOLER_ACCENT = '#7C3AED';
+
+type RoleItem = typeof ROLES_BASE[number] & { accent: string };
+
 function RoleCard({
   role,
-  index,
   onPress,
   enterAnim,
+  C,
 }: {
-  role: typeof ROLES[number];
+  role: RoleItem;
   index: number;
   onPress: () => void;
   enterAnim: Animated.Value;
+  C: any;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const onPressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
@@ -66,7 +74,7 @@ function RoleCard({
       }}
     >
       <TouchableOpacity
-        style={[styles.card, { borderColor: role.accent + '50' }]}
+        style={[styles.card, { borderColor: role.accent + '50', backgroundColor: C.cardBackground }]}
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
@@ -102,7 +110,7 @@ function RoleCard({
           {/* CTA */}
           <View style={[styles.cta, { backgroundColor: role.accent }]}>
             <Text style={styles.ctaText}>Continue as {role.title}</Text>
-            <Ionicons name="arrow-forward" size={15} color={Colors.textPrimary} />
+            <Ionicons name="arrow-forward" size={15} color="#fff" />
           </View>
         </View>
       </TouchableOpacity>
@@ -111,8 +119,10 @@ function RoleCard({
 }
 
 export default function RoleSelectionScreen({ navigation }: Props) {
+  const C = useTheme();
+  const { state } = useAppStore();
   const headerAnim = useRef(new Animated.Value(0)).current;
-  const cardAnims  = useRef(ROLES.map(() => new Animated.Value(0))).current;
+  const cardAnims  = useRef(ROLES_BASE.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     Animated.sequence([
@@ -127,11 +137,11 @@ export default function RoleSelectionScreen({ navigation }: Props) {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: C.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Header */}
       <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }]}>
@@ -142,8 +152,8 @@ export default function RoleSelectionScreen({ navigation }: Props) {
         </Text>
 
         {/* Verification badge */}
-        <View style={styles.verificationBadge}>
-          <Ionicons name="shield-checkmark" size={16} color={Colors.primary} />
+        <View style={[styles.verificationBadge, { backgroundColor: C.primaryGlow, borderColor: C.border }]}>
+          <Ionicons name="shield-checkmark" size={16} color={C.primary} />
           <Text style={styles.verificationText}>
             All roles require NADRA CNIC + biometric verification
           </Text>
@@ -151,19 +161,26 @@ export default function RoleSelectionScreen({ navigation }: Props) {
       </Animated.View>
 
       {/* Role cards */}
-      {ROLES.map((role, i) => (
-        <View key={role.screen} style={i > 0 ? { marginTop: 14 } : {}}>
-          <RoleCard
-            role={role}
-            index={i}
-            enterAnim={cardAnims[i]}
-            onPress={() => navigation.navigate(role.screen)}
-          />
-        </View>
-      ))}
+      {ROLES_BASE.map((roleBase, i) => {
+        const role = { ...roleBase, accent: roleBase.accentKey === 'primary' ? C.primary : CARPOOLER_ACCENT };
+        return (
+          <View key={role.screen} style={i > 0 ? { marginTop: 14 } : {}}>
+            <RoleCard
+              role={role}
+              index={i}
+              enterAnim={cardAnims[i]}
+              onPress={() => navigation.navigate(role.screen)}
+              C={C}
+            />
+          </View>
+        );
+      })}
 
       <Text style={styles.footerNote}>
-        Safe-Sawar is exclusively for women.{'\n'}All members are verified through NADRA.
+        {state.selectedGender === 'male'
+          ? 'Safe-Sawar male section is for verified men only.'
+          : 'Safe-Sawar is exclusively for women.'}
+        {'\n'}All members are verified through NADRA.
       </Text>
     </ScrollView>
   );
@@ -215,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, paddingVertical: 14, marginTop: 18,
     elevation: 4,
   },
-  ctaText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   footerNote: {
     textAlign: 'center', color: Colors.textMuted,

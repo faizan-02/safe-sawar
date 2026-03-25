@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/appStore';
 import SOSButton from '../components/SOSButton';
 import MeshNetworkStatus from '../components/MeshNetworkStatus';
@@ -18,15 +19,17 @@ import ProfileModal from '../components/ProfileModal';
 
 const { width } = Dimensions.get('window');
 
-const QUICK_ACTIONS = [
-  { icon: 'car',    label: 'Schedule Ride',  desc: 'Find a SheRah',     screen: 'ScheduleRide',  color: Colors.primary },
-  { icon: 'people', label: 'My Circles',      desc: 'Community vaults',  screen: 'Circles',       color: '#9C27B0' },
-  { icon: 'heart',  label: 'Vouch Friend',    desc: 'Build trust',       screen: 'Vouch',         color: '#E91E63' },
-  { icon: 'map',    label: 'Track Ride',      desc: 'Live location',     screen: 'RideInProgress', color: Colors.verified },
-];
-
 export default function HomeScreen({ navigation }: any) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
+
+  const QUICK_ACTIONS = [
+    { icon: 'car',    label: 'Schedule Ride',  desc: isMale ? 'Find a HamSafar' : 'Find a SheRah', screen: 'ScheduleRide',  color: C.primary },
+    { icon: 'people', label: 'My Circles',      desc: 'Community vaults',  screen: 'Circles',       color: '#9C27B0' },
+    { icon: 'heart',  label: 'Vouch Friend',    desc: 'Build trust',       screen: 'Vouch',         color: '#E91E63' },
+    { icon: 'map',    label: 'Track Ride',      desc: 'Live location',     screen: 'RideInProgress', color: C.verified },
+  ];
   const [profileVisible, setProfileVisible] = useState(false);
   const headerAnim   = useRef(new Animated.Value(0)).current;
   const heroAnim     = useRef(new Animated.Value(0)).current;
@@ -65,8 +68,8 @@ export default function HomeScreen({ navigation }: any) {
   const joinedCircles = state.circles.filter(c => c.isJoined);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
       <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} navigation={navigation} />
 
       <ScrollView
@@ -76,8 +79,8 @@ export default function HomeScreen({ navigation }: any) {
         {/* ── Header ────────────────────────────────────────────────────── */}
         <Animated.View style={[styles.header, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }] }]}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{userName} 👋</Text>
+            <Text style={[styles.greeting, { color: C.textMuted }]}>{getGreeting()}</Text>
+            <Text style={[styles.userName, { color: C.textPrimary }]}>{userName} 👋</Text>
             {state.isVerified && (
               <View style={styles.verifiedPill}>
                 <Ionicons name="shield-checkmark" size={11} color={Colors.verified} />
@@ -85,7 +88,7 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             )}
           </View>
-          <TouchableOpacity style={styles.avatar} onPress={() => setProfileVisible(true)}>
+          <TouchableOpacity style={[styles.avatar, { backgroundColor: C.primaryDark, borderColor: C.primary }]} onPress={() => setProfileVisible(true)}>
             <Text style={styles.avatarText}>{initials}</Text>
             <View style={styles.avatarOnline} />
           </TouchableOpacity>
@@ -94,7 +97,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* ── Hero — Book a ride CTA ─────────────────────────────────────── */}
         <Animated.View style={{ opacity: heroAnim, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
           <TouchableOpacity
-            style={styles.heroCard}
+            style={[styles.heroCard, { backgroundColor: C.primaryDark, borderColor: C.primary + '60', shadowColor: C.primary }]}
             onPress={() => navigation.navigate('ScheduleRide')}
             activeOpacity={0.9}
           >
@@ -104,11 +107,11 @@ export default function HomeScreen({ navigation }: any) {
 
             <View style={styles.heroContent}>
               <View style={styles.heroLeft}>
-                <Text style={styles.heroEyebrow}>Women-only • NADRA verified</Text>
+                <Text style={styles.heroEyebrow}>{isMale ? 'Verified males • NADRA verified' : 'Women-only • NADRA verified'}</Text>
                 <Text style={styles.heroTitle}>Book a{'\n'}Safe Ride</Text>
-                <View style={styles.heroBtn}>
-                  <Text style={styles.heroBtnText}>Find SheRahs</Text>
-                  <Ionicons name="arrow-forward" size={14} color={Colors.textPrimary} />
+                <View style={[styles.heroBtn, { backgroundColor: C.primary }]}>
+                  <Text style={styles.heroBtnText}>{isMale ? 'Find HamSafars' : 'Find SheRahs'}</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#fff" />
                 </View>
               </View>
               <View style={styles.heroIconWrap}>
@@ -119,13 +122,13 @@ export default function HomeScreen({ navigation }: any) {
         </Animated.View>
 
         {/* ── Safety Status ──────────────────────────────────────────────── */}
-        <View style={styles.safetyCard}>
+        <View style={[styles.safetyCard, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
           <View style={styles.safetyLeft}>
             <View style={styles.safetyIconWrap}>
               <Ionicons name="shield-checkmark" size={20} color={Colors.verified} />
             </View>
             <View>
-              <Text style={styles.safetyTitle}>Safety Status</Text>
+              <Text style={[styles.safetyTitle, { color: C.textPrimary }]}>Safety Status</Text>
               <MeshNetworkStatus compact showLabel />
             </View>
           </View>
@@ -139,7 +142,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <View style={[styles.sectionAccent, { backgroundColor: Colors.primary }]} />
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Quick Actions</Text>
           </View>
         </View>
 
@@ -156,15 +159,15 @@ export default function HomeScreen({ navigation }: any) {
               ]}
             >
               <TouchableOpacity
-                style={styles.actionCard}
+                style={[styles.actionCard, { backgroundColor: C.cardBackground, borderColor: C.border }]}
                 onPress={() => navigation.navigate(action.screen)}
                 activeOpacity={0.8}
               >
                 <View style={[styles.actionIconBox, { backgroundColor: action.color + '18' }]}>
                   <Ionicons name={action.icon as any} size={26} color={action.color} />
                 </View>
-                <Text style={styles.actionLabel}>{action.label}</Text>
-                <Text style={styles.actionDesc}>{action.desc}</Text>
+                <Text style={[styles.actionLabel, { color: C.textPrimary }]}>{action.label}</Text>
+                <Text style={[styles.actionDesc, { color: C.textMuted }]}>{action.desc}</Text>
                 <View style={[styles.actionArrow, { backgroundColor: action.color + '15' }]}>
                   <Ionicons name="chevron-forward" size={12} color={action.color} />
                 </View>
@@ -179,7 +182,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.sectionAccent, { backgroundColor: '#9C27B0' }]} />
-                <Text style={styles.sectionTitle}>My Circles</Text>
+                <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>My Circles</Text>
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('Circles')}>
                 <Text style={styles.seeAll}>See All</Text>
@@ -191,11 +194,11 @@ export default function HomeScreen({ navigation }: any) {
               contentContainerStyle={styles.circlesScroll}
             >
               {joinedCircles.map(circle => (
-                <View key={circle.id} style={styles.circleChip}>
+                <View key={circle.id} style={[styles.circleChip, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
                   <Text style={styles.circleEmoji}>{circle.emoji}</Text>
                   <View style={styles.circleInfo}>
-                    <Text style={styles.circleName} numberOfLines={1}>{circle.name}</Text>
-                    <Text style={styles.circleStats}>{circle.memberCount} members</Text>
+                    <Text style={[styles.circleName, { color: C.textPrimary }]} numberOfLines={1}>{circle.name}</Text>
+                    <Text style={[styles.circleStats, { color: C.textMuted }]}>{circle.memberCount} members</Text>
                   </View>
                   <View style={styles.circleJoinedBadge}>
                     <Ionicons name="checkmark" size={10} color={Colors.verified} />
@@ -210,7 +213,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <View style={[styles.sectionAccent, { backgroundColor: Colors.verified }]} />
-            <Text style={styles.sectionTitle}>Your Stats</Text>
+            <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Your Stats</Text>
           </View>
         </View>
 
@@ -220,7 +223,7 @@ export default function HomeScreen({ navigation }: any) {
             { value: joinedCircles.length,                                    label: 'Circles',       icon: 'people',          color: '#9C27B0' },
             { value: state.contacts.filter(c => c.isVouched).length,         label: 'Vouched',       icon: 'shield-checkmark', color: Colors.verified },
           ].map((stat, i) => (
-            <View key={i} style={styles.statCard}>
+            <View key={i} style={[styles.statCard, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
               <View style={[styles.statIconWrap, { backgroundColor: stat.color + '15' }]}>
                 <Ionicons name={stat.icon as any} size={16} color={stat.color} />
               </View>
@@ -231,15 +234,15 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* ── SOS Card ───────────────────────────────────────────────────── */}
-        <View style={styles.sosCard}>
+        <View style={[styles.sosCard, { backgroundColor: C.cardBackground }]}>
           <View style={styles.sosGlow} />
           <View style={styles.sosLeft}>
             <View style={styles.sosIconWrap}>
               <Ionicons name="warning" size={18} color={Colors.sosRed} />
             </View>
             <View style={styles.sosTextWrap}>
-              <Text style={styles.sosTitle}>Emergency SOS</Text>
-              <Text style={styles.sosDesc}>Works offline via Bluetooth mesh</Text>
+              <Text style={[styles.sosTitle, { color: C.textPrimary }]}>Emergency SOS</Text>
+              <Text style={[styles.sosDesc, { color: C.textMuted }]}>Works offline via Bluetooth mesh</Text>
             </View>
           </View>
           <SOSButton large={false} />
@@ -277,7 +280,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.primary,
     position: 'relative',
   },
-  avatarText: { color: Colors.textPrimary, fontSize: 17, fontWeight: '800' },
+  avatarText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   avatarOnline: {
     position: 'absolute', bottom: 1, right: 1,
     width: 12, height: 12, borderRadius: 6,
@@ -311,13 +314,13 @@ const styles = StyleSheet.create({
   heroContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLeft: { flex: 1 },
   heroEyebrow: { color: Colors.primaryLight, fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 6 },
-  heroTitle: { color: Colors.textPrimary, fontSize: 28, fontWeight: '900', lineHeight: 32, marginBottom: 16 },
+  heroTitle: { color: '#fff', fontSize: 28, fontWeight: '900', lineHeight: 32, marginBottom: 16 },
   heroBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     backgroundColor: Colors.primary, borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 8,
   },
-  heroBtnText: { color: Colors.textPrimary, fontSize: 13, fontWeight: '800' },
+  heroBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   heroIconWrap: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: Colors.primary + '20',

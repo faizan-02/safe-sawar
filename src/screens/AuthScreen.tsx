@@ -6,19 +6,25 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useAppStore } from '../store/appStore';
 
 const { width } = Dimensions.get('window');
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-const FEATURES = [
-  { icon: 'shield-checkmark', text: 'NADRA CNIC Verified' },
-  { icon: 'scan',             text: 'Biometric Authentication' },
-  { icon: 'people',           text: 'Women-Only Platform' },
-  { icon: 'wifi',             text: 'Offline SOS Mesh Network' },
-];
-
 export default function AuthScreen({ navigation }: Props) {
+  const C = useTheme();
+  const { state } = useAppStore();
+  const isMale = state.selectedGender === 'male';
+
+  const FEATURES = [
+    { icon: 'shield-checkmark', text: 'NADRA CNIC Verified' },
+    { icon: 'scan',             text: 'Biometric Authentication' },
+    { icon: 'people',           text: isMale ? 'Verified Male Platform' : 'Women-Only Platform' },
+    { icon: 'wifi',             text: 'Offline SOS Mesh Network' },
+  ];
+
   const logoAnim    = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
   const btnAnim     = useRef(new Animated.Value(0)).current;
@@ -32,33 +38,35 @@ export default function AuthScreen({ navigation }: Props) {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Background glows */}
-      <View style={styles.glow1} />
-      <View style={styles.glow2} />
+      <View style={[styles.glow1, { backgroundColor: C.primary }]} />
+      <View style={[styles.glow2, { backgroundColor: C.secondary }]} />
 
       {/* Logo section */}
       <Animated.View style={[styles.logoSection, {
         opacity: logoAnim,
         transform: [{ translateY: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }],
       }]}>
-        <View style={styles.shieldBox}>
-          <Text style={styles.shieldEmoji}>🛡️</Text>
+        <View style={[styles.shieldBox, { backgroundColor: C.cardBackground, borderColor: C.borderStrong, shadowColor: C.primary }]}>
+          <Text style={styles.shieldEmoji}>{isMale ? '🛡️' : '🛡️'}</Text>
         </View>
-        <Text style={styles.appName}>Safe-Sawar</Text>
-        <Text style={styles.urdu}>محفوظ سوار</Text>
-        <Text style={styles.tagline}>Pakistan's First Women-Only Carpooling</Text>
+        <Text style={[styles.appName, { color: C.textPrimary, textShadowColor: C.primary }]}>Safe-Sawar</Text>
+        <Text style={[styles.urdu, { color: C.primary }]}>محفوظ سوار</Text>
+        <Text style={[styles.tagline, { color: C.textMuted }]}>
+          {isMale ? "Pakistan's Verified Male Carpooling" : "Pakistan's First Women-Only Carpooling"}
+        </Text>
       </Animated.View>
 
       {/* Feature pills */}
       <Animated.View style={[styles.featuresWrap, { opacity: contentAnim }]}>
         <View style={styles.featureGrid}>
           {FEATURES.map((f, i) => (
-            <View key={i} style={styles.featurePill}>
-              <Ionicons name={f.icon as any} size={14} color={Colors.primary} />
-              <Text style={styles.featureText}>{f.text}</Text>
+            <View key={i} style={[styles.featurePill, { backgroundColor: C.cardBackground, borderColor: C.border }]}>
+              <Ionicons name={f.icon as any} size={14} color={C.primary} />
+              <Text style={[styles.featureText, { color: C.textSecondary }]}>{f.text}</Text>
             </View>
           ))}
         </View>
@@ -71,27 +79,27 @@ export default function AuthScreen({ navigation }: Props) {
       }]}>
         {/* Create Account */}
         <TouchableOpacity
-          style={styles.createBtn}
+          style={[styles.createBtn, { backgroundColor: C.primary, shadowColor: C.primary }]}
           onPress={() => navigation.navigate('RoleSelection')}
           activeOpacity={0.88}
         >
-          <Ionicons name="person-add" size={20} color={Colors.textPrimary} />
+          <Ionicons name="person-add" size={20} color="#FFFFFF" />
           <Text style={styles.createBtnText}>Create Account</Text>
         </TouchableOpacity>
 
         {/* Sign In */}
         <TouchableOpacity
-          style={styles.loginBtn}
+          style={[styles.loginBtn, { backgroundColor: C.cardBackground, borderColor: C.primary }]}
           onPress={() => navigation.navigate('Login')}
           activeOpacity={0.88}
         >
-          <Ionicons name="log-in-outline" size={20} color={Colors.primary} />
-          <Text style={styles.loginBtnText}>Sign In</Text>
+          <Ionicons name="log-in-outline" size={20} color={C.primary} />
+          <Text style={[styles.loginBtnText, { color: C.primary }]}>Sign In</Text>
         </TouchableOpacity>
 
-        <Text style={styles.disclaimer}>
+        <Text style={[styles.disclaimer, { color: C.textMuted }]}>
           By continuing you agree to our Terms of Service.{'\n'}
-          Safe-Sawar is exclusively for women.
+          {isMale ? 'Safe-Sawar verifies all male users via NADRA.' : 'Safe-Sawar is exclusively for women.'}
         </Text>
       </Animated.View>
     </View>
@@ -149,7 +157,7 @@ const styles = StyleSheet.create({
     elevation: 10, shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 14,
   },
-  createBtnText: { color: Colors.textPrimary, fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
+  createBtnText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
   loginBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.cardBackground, borderRadius: 16, paddingVertical: 16, gap: 10,

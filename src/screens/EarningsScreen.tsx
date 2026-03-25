@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const WEEKLY_DATA = [
   { day: 'Mon', amount: 560, rides: 2 },
@@ -26,19 +27,20 @@ const TRANSACTIONS = [
 const MAX_AMOUNT = Math.max(...WEEKLY_DATA.map(d => d.amount));
 
 export default function EarningsScreen() {
+  const C = useTheme();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
 
   const totalWeek = WEEKLY_DATA.reduce((a, b) => a + b.amount, 0);
   const totalRides = WEEKLY_DATA.reduce((a, b) => a + b.rides, 0);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Earnings</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Earnings</Text>
           <Text style={styles.headerSub}>Track your income</Text>
         </View>
 
@@ -61,7 +63,7 @@ export default function EarningsScreen() {
         <View style={styles.totalCard}>
           <View style={styles.totalLeft}>
             <Text style={styles.totalLabel}>Total Earned</Text>
-            <Text style={styles.totalAmount}>Rs. {period === 'week' ? '3,920' : '18,450'}</Text>
+            <Text style={[styles.totalAmount, { color: C.textPrimary }]}>Rs. {period === 'week' ? '3,920' : '18,450'}</Text>
             <View style={styles.growthRow}>
               <Ionicons name="trending-up" size={14} color={Colors.verified} />
               <Text style={styles.growthText}>+12% vs last {period}</Text>
@@ -69,12 +71,12 @@ export default function EarningsScreen() {
           </View>
           <View style={styles.totalRight}>
             <View style={styles.totalStatItem}>
-              <Text style={styles.totalStatValue}>{period === 'week' ? totalRides : 58}</Text>
+              <Text style={[styles.totalStatValue, { color: C.textPrimary }]}>{period === 'week' ? totalRides : 58}</Text>
               <Text style={styles.totalStatLabel}>Rides</Text>
             </View>
             <View style={styles.totalStatDivider} />
             <View style={styles.totalStatItem}>
-              <Text style={styles.totalStatValue}>Rs. {period === 'week' ? '280' : '318'}</Text>
+              <Text style={[styles.totalStatValue, { color: C.textPrimary }]}>Rs. {period === 'week' ? '280' : '318'}</Text>
               <Text style={styles.totalStatLabel}>Avg/Ride</Text>
             </View>
           </View>
@@ -82,7 +84,7 @@ export default function EarningsScreen() {
 
         {/* Bar chart */}
         <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Daily Earnings</Text>
+          <Text style={[styles.chartTitle, { color: C.textPrimary }]}>Daily Earnings</Text>
           <View style={styles.chart}>
             {WEEKLY_DATA.map((d, i) => {
               const heightPct = MAX_AMOUNT > 0 ? (d.amount / MAX_AMOUNT) * 100 : 0;
@@ -112,17 +114,17 @@ export default function EarningsScreen() {
         <View style={styles.withdrawCard}>
           <View>
             <Text style={styles.withdrawLabel}>Available Balance</Text>
-            <Text style={styles.withdrawAmount}>Rs. 3,920</Text>
+            <Text style={[styles.withdrawAmount, { color: C.textPrimary }]}>Rs. 3,920</Text>
           </View>
           <TouchableOpacity style={styles.withdrawBtn}>
-            <Ionicons name="arrow-down-circle" size={18} color={Colors.textPrimary} />
+            <Ionicons name="arrow-down-circle" size={18} color="#fff" />
             <Text style={styles.withdrawBtnText}>Withdraw</Text>
           </TouchableOpacity>
         </View>
 
         {/* Transaction history */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Transactions</Text>
+          <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Transactions</Text>
           {TRANSACTIONS.map(tx => (
             <View key={tx.id} style={styles.txRow}>
               <View style={[styles.txIcon, { backgroundColor: tx.type === 'credit' ? Colors.verified + '20' : '#e5393520' }]}>
@@ -133,7 +135,7 @@ export default function EarningsScreen() {
                 />
               </View>
               <View style={styles.txInfo}>
-                <Text style={styles.txDesc}>{tx.desc}</Text>
+                <Text style={[styles.txDesc, { color: C.textPrimary }]}>{tx.desc}</Text>
                 <Text style={styles.txDate}>{tx.date}</Text>
               </View>
               <Text style={[styles.txAmount, { color: tx.type === 'credit' ? Colors.verified : '#e53935' }]}>
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
   periodBtn: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center' },
   periodBtnActive: { backgroundColor: Colors.cardBackground },
   periodBtnText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
-  periodBtnTextActive: { color: Colors.textPrimary },
+  periodBtnTextActive: { color: '#fff' },
 
   totalCard: {
     marginHorizontal: 20, marginBottom: 16, padding: 20,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16,
   },
-  withdrawBtnText: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  withdrawBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
   section: { marginHorizontal: 20 },
   sectionTitle: { fontSize: 17, fontWeight: '800', color: Colors.textPrimary, marginBottom: 12 },

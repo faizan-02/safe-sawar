@@ -16,6 +16,7 @@ import { Colors } from '../theme/colors';
 import RideMatchCard from '../components/RideMatchCard';
 import { matchRides, RideMatch, bookRide } from '../services/rideMatchingService';
 import { useAppStore } from '../store/appStore';
+import { useTheme } from '../theme/ThemeContext';
 
 // ── Nominatim geocoding (OpenStreetMap, free, no API key) ─────────────────────
 
@@ -77,7 +78,9 @@ const POPULAR_LOCATIONS = [
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function ScheduleRideScreen({ navigation }: any) {
+  const C = useTheme();
   const { state, dispatch } = useAppStore();
+  const isMale = state.selectedGender === 'male';
 
   // Location inputs
   const [pickup, setPickup] = useState('');
@@ -214,7 +217,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
   const handleBook = useCallback(async (match: RideMatch) => {
     Alert.alert(
       `Book with ${match.driverName}?`,
-      `${match.car} (${match.carColor})\nETA: ${match.eta}\nEstimated: ${match.priceEstimate}\n\n${match.vouchCount} women have vouched for her.`,
+      `${match.car} (${match.carColor})\nETA: ${match.eta}\nEstimated: ${match.priceEstimate}\n\n${match.vouchCount} ${isMale ? 'men' : 'women'} have vouched for ${isMale ? 'him' : 'her'}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -256,12 +259,12 @@ export default function ScheduleRideScreen({ navigation }: any) {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor={C.background} />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Schedule a Ride</Text>
-        <Text style={styles.headerSubtitle}>Find verified women going your way</Text>
+        <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Schedule a Ride</Text>
+        <Text style={styles.headerSubtitle}>{isMale ? 'Find verified men going your way' : 'Find verified women going your way'}</Text>
       </View>
 
       <ScrollView
@@ -278,7 +281,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
               <Ionicons name="navigate-circle" size={22} color={Colors.primary} />
             )}
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.locationCardTitle}>
+              <Text style={[styles.locationCardTitle, { color: C.textPrimary }]}>
                 {locationLoading ? 'Getting your location...' : userLocation ? 'Location detected' : 'Location unavailable'}
               </Text>
               <Text style={styles.locationCardSub}>
@@ -308,7 +311,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
             </View>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={styles.locationInput}
+                style={[styles.locationInput, { color: C.textPrimary }]}
                 placeholder="Pickup location"
                 placeholderTextColor={Colors.textMuted}
                 value={pickup}
@@ -348,7 +351,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
             </View>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={styles.locationInput}
+                style={[styles.locationInput, { color: C.textPrimary }]}
                 placeholder="Drop-off location"
                 placeholderTextColor={Colors.textMuted}
                 value={dropoff}
@@ -404,12 +407,12 @@ export default function ScheduleRideScreen({ navigation }: any) {
           >
             {isSearching ? (
               <>
-                <ActivityIndicator color={Colors.textPrimary} size="small" />
+                <ActivityIndicator color="#fff" size="small" />
                 <Text style={styles.searchButtonText}>Finding SheRahs...</Text>
               </>
             ) : (
               <>
-                <Ionicons name="search" size={18} color={Colors.textPrimary} />
+                <Ionicons name="search" size={18} color="#fff" />
                 <Text style={styles.searchButtonText}>Find Matching SheRahs</Text>
               </>
             )}
@@ -420,7 +423,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
         {hasSearched && (
           <View style={styles.resultsSection}>
             <View style={styles.resultsHeader}>
-              <Text style={styles.resultsTitle}>
+              <Text style={[styles.resultsTitle, { color: C.textPrimary }]}>
                 {isSearching ? 'Searching...' : `Matching SheRahs (${matches.length})`}
               </Text>
               {!isSearching && matches.length > 0 && (
@@ -440,7 +443,7 @@ export default function ScheduleRideScreen({ navigation }: any) {
             ) : (
               <View style={styles.noResults}>
                 <Text style={styles.noResultsEmoji}>🚗</Text>
-                <Text style={styles.noResultsTitle}>No matches found</Text>
+                <Text style={[styles.noResultsTitle, { color: C.textPrimary }]}>No matches found</Text>
                 <Text style={styles.noResultsText}>
                   Try different locations or check back later
                 </Text>
@@ -555,7 +558,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   searchButtonDisabled: { opacity: 0.7 },
-  searchButtonText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  searchButtonText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   resultsSection: { paddingHorizontal: 20 },
   resultsHeader: {
