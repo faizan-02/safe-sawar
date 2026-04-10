@@ -1,10 +1,18 @@
 # Safe-Sawar
 
-**Pakistan's first NADRA-verified, women-first carpooling platform.**
+**A women-safety focused carpooling app with biometric verification, SOS alerts, mesh networking, and trusted circles. Built with React Native & TypeScript.**
 
 Safe-Sawar enables women to safely book and share rides through trusted institution-based community circles, with biometric identity verification and an offline-capable Emergency SOS system built on mesh networking.
 
+The app was originally built to tackle rising fuel costs driven by worldwide economic fuel inflation — giving people a safe, trusted way to share rides and split costs. The women-first approach was chosen to directly address safety concerns that prevent women from using conventional carpooling platforms in Pakistan.
+
+As the platform grew, we embedded a dedicated male section to further enhance the overall experience for the wider userbase, while keeping the women-first safety model intact.
+
 > *Travel Together. Stay Safe.*
+
+> **Status:** Currently in prototype / beta testing stage. Additional features are being integrated and tested. Public launch coming soon.
+>
+> **NADRA Integration:** Actively in talks with NADRA to bring live biometric verification to the platform — making identity checks fully authentic at scale.
 
 ---
 
@@ -160,8 +168,8 @@ src/
 
 ## Notes
 
-- NADRA verification is **simulated** — no real API calls in demo mode
-- Mesh network SOS is **simulated** — production would use Bluetooth LE / WiFi Direct
+- NADRA verification is **currently simulated** — live integration is in progress with NADRA and will be activated once approved
+- Mesh network SOS is **simulated** — production build will use Bluetooth LE / WiFi Direct
 - OTP demo code is always `123456`
 - Maps use a custom dark style via react-native-maps
 
