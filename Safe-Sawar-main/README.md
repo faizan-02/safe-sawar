@@ -203,4 +203,4 @@ src/
 
 ---
 
-Built by [HydraBytes](https://www.hydrabytes.it.com) — Next-gen digital solutions from Pakistan.
+Built by [HydraBytes](https://www.hydrabytes.tech) — Next-gen digital solutions from Pakistan.
