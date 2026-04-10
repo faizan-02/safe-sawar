@@ -152,6 +152,34 @@ src/
 
 ---
 
+## Screenshots
+
+### Onboarding
+
+| Splash | Safety First | Institution Circles | Emergency SOS |
+|:---:|:---:|:---:|:---:|
+| ![Splash](assets/screen3.jpeg) | ![Safety](assets/screen4.jpeg) | ![Circles](assets/screen5.jpeg) | ![SOS](assets/screen6.jpeg) |
+
+### Gender & Auth
+
+| Gender Selection (Android) | Male Auth Screen (Android) |
+|:---:|:---:|
+| ![Gender Selection](assets/screen1.png) | ![Male Auth](assets/screen2.png) |
+
+### Core App
+
+| Home Dashboard | Institution Vaults | Schedule a Ride | Vouch for Friends |
+|:---:|:---:|:---:|:---:|
+| ![Home](assets/screen8.jpeg) | ![Circles](assets/screen9.jpeg) | ![Schedule](assets/screen10.jpeg) | ![Vouch](assets/screen11.jpeg) |
+
+### Identity Verification
+
+| NADRA CNIC Verification |
+|:---:|
+| ![NADRA](assets/screen7.jpeg) |
+
+---
+
 ## Pre-loaded Demo Data
 
 **Circles:** UET Lahore, NUST Islamabad, COMSATS, PIMS Islamabad, Quaid-i-Azam University, Aga Khan Hospital
