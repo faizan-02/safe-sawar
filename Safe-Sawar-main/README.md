@@ -1,4 +1,4 @@
-# Safe-Sawar — محفوظ سوار
+# Safe-Sawar
 
 **Pakistan's first NADRA-verified, women-first carpooling platform.**
 
